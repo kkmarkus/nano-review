@@ -1,0 +1,13 @@
+md5: b13bc7b6d9286a1d9b1215bd7cbaa927
+frozen: true
+deps:
+- checksum: '"91be63293515f8d2050e250287a3c4cb604ce63f2bb3766f21cc074c15a01bfd"'
+  size: 49453175
+  hash: md5
+  path: 
+    https://raw.githubusercontent.com/americanas-tech/b2w-reviews01/4639429ec698d7821fc99a0bc665fa213d9fcd5a/B2W-Reviews01.csv
+outs:
+- md5: 3d6bb9c7546fe32bb4dff53eaeedafda
+  size: 49453175
+  hash: md5
+  path: B2W-Reviews01.csv

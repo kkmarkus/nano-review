@@ -10,7 +10,7 @@ produto em português a partir de uma nota de 1 a 5. Projeto integrador individu
 ## Status
 
 - Etapa 0 concluída: esqueleto do repositório, ambiente e porta de qualidade (`make check`).
-- Etapa 1 em andamento: charter (`docs/charter.md`) e DVC configurados.
+- Etapa 1 em andamento: charter (`docs/charter.md`), DVC e dados brutos com manifesto (`docs/data_manifest.md`).
 
 ## Como preparar o ambiente (WSL/Ubuntu, Python 3.12)
 
@@ -49,7 +49,7 @@ configs/           hiperparâmetros em YAML
 (um ponteiro com o hash do conteúdo); os arquivos grandes ficam no cache do DVC e no remote.
 
 ```
-data/raw/        download original do Kaggle; nunca editar à mão
+data/raw/        download original (GitHub da B2W, via `dvc import-url`); nunca editar à mão
 data/processed/  limpo, deduplicado, sem dados pessoais
 data/curated/    splits prontos (train, validation, test), feitos por produto
 models/          checkpoints treinados
