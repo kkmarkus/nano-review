@@ -1,6 +1,6 @@
 # Charter do projeto nano-review
 
-> Versão 0.1 (rascunho, Etapa 1). Este documento fixa o problema e a forma de medir o sucesso
+> Versão 0.2 (Etapa 1, revisada contra a rubrica do tutorial). Este documento fixa o problema e a forma de medir o sucesso
 > **antes** de existir modelo, para que a avaliação não seja ajustada depois para caber no resultado.
 
 ## 1. Problema e nicho
@@ -19,6 +19,15 @@ O nano-review é um gerador de resenhas curtas de produto em português, condici
 - **Decisão que o sistema apoia:** "este conjunto de textos serve para testar a minha tela, o meu filtro
   ou o meu classificador?". Para isso, o texto precisa soar como resenha, ser coerente com a nota pedida
   e variar entre amostras.
+
+## 2.1 Erro caro
+
+1. **Texto que contradiz a nota** (por exemplo, um elogio entregue como nota 1). É o pior erro porque
+   não aparece: o usuário roda o próprio classificador sobre o texto, vê um "erro" e conclui que o
+   classificador dele falhou, quando quem errou foi o gerador. Por isso a coerência é a métrica principal.
+2. **Cópia de uma resenha real.** O texto deixa de ser sintético e pode carregar informação de um
+   cliente real. Por isso a taxa de cópia é medida em toda avaliação.
+3. Texto pouco fluente ou repetitivo é um erro mais barato, porque o usuário percebe na hora e descarta.
 
 ## 3. Entrada e saída
 
@@ -48,6 +57,7 @@ Todas são medidas na **validação** durante o desenvolvimento e no **teste** s
 | Diversidade | O modelo repete sempre a mesma frase? | distinct-1 e distinct-2: n-gramas únicos divididos pelo total de n-gramas nas amostras. |
 | Cópia do treino | O modelo está decorando? | Fração de amostras idênticas a uma resenha de treino e fração com algum trecho de 8 palavras presente no treino. |
 | Rubrica humana | O que número nenhum pega: fluência, plausibilidade | Rubrica escrita **antes** de lermos amostras (até o início da Etapa 3), aplicada a uma amostra fixa. |
+| Análise de erros | Por que o modelo erra, não só quanto | Pelo menos 10 amostras ruins analisadas uma a uma: nota pedida, texto gerado, o que está errado, hipótese da causa e ação possível. |
 
 Duas cautelas registradas desde já:
 
@@ -60,10 +70,20 @@ Duas cautelas registradas desde já:
 
 ## 6. Baseline
 
-- **Gerador:** modelo de n-gramas (trigrama de palavras com suavização) treinado no mesmo formato
-  `<nota_k> texto <eos>`. É o "modelo de linguagem mais simples que funciona": se o Transformer não o
-  superar, o Transformer não se justifica.
-- **Juiz:** TF-IDF + regressão logística treinado no conjunto de treino real.
+Cada lado tem um **piso trivial** e um **baseline de verdade**. O piso mostra quanto se ganha "de
+graça"; sem ele, um número alto pode ser só efeito do desbalanceamento.
+
+| | Piso trivial | Baseline |
+|---|---|---|
+| Gerador | Unigrama por nota: sorteia palavras pela frequência na nota pedida, sem olhar o contexto | Trigrama de palavras com suavização, treinado no formato `<nota_k> texto <eos>` |
+| Juiz (classificador) | Classe majoritária: responde sempre a classe mais comum (positivo) | TF-IDF + regressão logística, treinada no conjunto de treino real |
+
+- O trigrama é o "modelo de linguagem mais simples que funciona": ele só memoriza sequências locais de
+  três palavras. Se o Transformer não o superar, o Transformer não se justifica.
+- A regressão logística é a ponte para a rede neural: uma camada linear seguida de softmax, treinada
+  com cross-entropy por **descida do gradiente**, o mesmo ciclo forward → loss → backward → atualização
+  dos pesos que treina o Transformer. O relatório explica esse treino passo a passo; a forma de
+  implementar (à mão em PyTorch ou com scikit-learn) é decidida na sub-etapa 6.
 
 ## 7. Hipótese
 
@@ -83,13 +103,19 @@ Transformer.
 | Memorização | O "gerador" vira um copiador de resenhas reais | Métrica de cópia; dedupe antes do split; split por produto |
 | Dados pessoais no texto | Vazar e-mail, telefone ou CPF de clientes reais | Descartar colunas de perfil do avaliador; filtrar o texto por regex na limpeza |
 | CPU limita o tamanho do modelo | Texto pouco fluente | Resenhas curtas, vocabulário BPE pequeno, modelo pequeno; treinar cedo, não só no fim |
-| Juiz fraco | Coerência medida com ruído | Reportar a acurácia do juiz; rubrica humana como segunda opinião |
+| Juiz fraco | Coerência medida com ruído | Reportar a acurácia do juiz ao lado do piso da classe majoritária; rubrica humana como segunda opinião |
+| Alucinação | O texto inventa fatos sobre o produto (voltagem, tamanho, marca) | Deixar claro que a saída é texto de teste, não informação; condicionamento só pela nota, sem nome de produto |
 | Uso indevido | Publicar avaliações falsas em loja real | Ver seção 9 |
 
 ## 9. Ética e fora do escopo
 
-- **Não é objetivo:** gerar avaliações para publicação. Resenha falsa engana consumidores e, no Brasil,
-  pode configurar publicidade enganosa (CDC). O uso pretendido é teste de software.
+- **Uso pretendido:** gerar texto de teste para software (telas, moderação, classificadores).
+- **Quando o modelo NÃO deve ser usado:**
+  - publicar avaliações em loja, marketplace ou rede social. Resenha falsa engana consumidores e, no
+    Brasil, pode configurar publicidade enganosa (CDC);
+  - servir de fonte de informação sobre um produto, porque o texto pode inventar fatos;
+  - substituir dados reais no treino de um classificador que vá para produção sem validação em dados
+    reais, porque o texto herda os vieses do B2W e os do próprio gerador.
 - Fora do escopo da v1: condicionamento por categoria ou produto, resenhas longas, uso comercial
   (a licença CC BY-NC-SA não permite), qualquer modelo pré-treinado como núcleo.
 
