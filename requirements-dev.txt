@@ -3,4 +3,6 @@ pytest>=8
 mypy>=1.10
 ruff>=0.5
 pandas-stubs>=2.2
+# Versionamento de dados e modelos (data/ e models/); ferramenta de trabalho, o pacote não depende dele.
+dvc>=3.50
 -e .

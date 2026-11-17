@@ -20,5 +20,9 @@ mlruns/
 # arquivos .dvc ao lado dos dados e adiciona sozinho ao .gitignore o que não deve
 # ir para o Git. Por isso o `dvc init` acontece antes do primeiro download (Etapa 1).
 
-# Instruções locais do assistente
+# Instruções e estado locais do assistente
 CLAUDE.md
+.omc/
+
+# Material de apoio de terceiros (tutorial do curso): fica só na máquina, não é nosso para redistribuir
+docs/material-apoio/

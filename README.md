@@ -9,11 +9,12 @@ produto em português a partir de uma nota de 1 a 5. Projeto integrador individu
 
 ## Status
 
-Etapa 0 concluída: esqueleto do repositório, ambiente e porta de qualidade (`make check`).
+- Etapa 0 concluída: esqueleto do repositório, ambiente e porta de qualidade (`make check`).
+- Etapa 1 em andamento: charter (`docs/charter.md`) e DVC configurados.
 
 ## Como preparar o ambiente (WSL/Ubuntu, Python 3.12)
 
-Mantenha o projeto dentro do sistema de arquivos do WSL (por exemplo `~/projetos/nano-review`),
+Mantenha o projeto dentro do sistema de arquivos do WSL (por exemplo `~/workspace/nano-review`),
 fora de `/mnt/c` e de pastas sincronizadas pelo OneDrive.
 
 ```bash
@@ -42,4 +43,25 @@ notebooks/         exploração de dados
 configs/           hiperparâmetros em YAML
 ```
 
-Ainda não existem `data/` e `models/`: serão criadas na Etapa 1, já sob controle do DVC.
+## Dados e modelos (DVC)
+
+`data/` e `models/` são versionados pelo **DVC**, não pelo Git. O Git guarda só os arquivos `.dvc`
+(um ponteiro com o hash do conteúdo); os arquivos grandes ficam no cache do DVC e no remote.
+
+```
+data/raw/        download original do Kaggle; nunca editar à mão
+data/processed/  limpo, deduplicado, sem dados pessoais
+data/curated/    splits prontos (train, validation, test), feitos por produto
+models/          checkpoints treinados
+```
+
+As pastas nascem quando o primeiro arquivo chega (sem `.gitkeep`: se o Git rastreasse um arquivo
+dentro de uma pasta, o `dvc add` dessa pasta falharia com "already tracked by SCM").
+
+O remote padrão é uma pasta local fora do repositório (`~/dvc-storage/nano-review`):
+
+```bash
+mkdir -p ~/dvc-storage/nano-review   # só na primeira vez em uma máquina nova
+dvc pull                             # baixa do remote os dados que o Git aponta
+dvc push                             # envia para o remote os dados novos
+```
