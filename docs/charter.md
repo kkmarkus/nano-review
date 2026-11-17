@@ -1,14 +1,14 @@
 # Charter do projeto nano-review
 
-> Versão 0.2 (Etapa 1, revisada contra a rubrica do tutorial). Este documento fixa o problema e a forma de medir o sucesso
+> Versão 0.3 (Etapa 1: distribuição das notas corrigida com os dados reais do `docs/data_manifest.md`). Este documento fixa o problema e a forma de medir o sucesso
 > **antes** de existir modelo, para que a avaliação não seja ajustada depois para caber no resultado.
 
 ## 1. Problema e nicho
 
 Quem desenvolve telas de avaliação, filtros de moderação ou classificadores de sentimento precisa de
 muitos textos de resenha para testar o sistema. Dados reais têm problemas para esse uso: dados pessoais,
-licença, pouca variedade em algumas notas (resenhas de nota 3 são raras) e o fato de que não dá para
-pedir "mais 500 resenhas de nota 2".
+licença, poucas resenhas em algumas notas (no B2W, a nota 2 é só 6,3% das resenhas e a nota 3, 12,3%,
+contra 36,2% da nota 5) e o fato de que não dá para pedir "mais 500 resenhas de nota 2".
 
 O nano-review é um gerador de resenhas curtas de produto em português, condicionado à nota, treinado
 **do zero** (Transformer só-decoder pequeno, sem modelo pré-treinado) em CPU.
@@ -99,7 +99,7 @@ Transformer.
 
 | Risco | Efeito | Mitigação |
 |---|---|---|
-| Desbalanceamento (nota 5 domina) | O modelo aprende a gerar elogio para qualquer nota | Coerência macro por classe; avaliar amostragem balanceada ou peso por classe na Etapa 3 |
+| Desbalanceamento (nota 5 tem 36,2%, nota 2 só 6,3%; no classificador de 3 classes, o neutro fica com 12,3%) | O modelo aprende a gerar elogio para qualquer nota e vê poucos exemplos de nota 2 | Coerência macro por classe; avaliar amostragem balanceada ou peso por classe na Etapa 3 |
 | Memorização | O "gerador" vira um copiador de resenhas reais | Métrica de cópia; dedupe antes do split; split por produto |
 | Dados pessoais no texto | Vazar e-mail, telefone ou CPF de clientes reais | Descartar colunas de perfil do avaliador; filtrar o texto por regex na limpeza |
 | CPU limita o tamanho do modelo | Texto pouco fluente | Resenhas curtas, vocabulário BPE pequeno, modelo pequeno; treinar cedo, não só no fim |
