@@ -1,0 +1,24 @@
+# Ambiente e caches
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Rastreamento de experimentos (MLflow)
+mlruns/
+
+# Editor / sistema
+.idea/
+.vscode/
+.DS_Store
+
+# Atenção: data/ e models/ NÃO são ignorados aqui de propósito. O DVC cria os
+# arquivos .dvc ao lado dos dados e adiciona sozinho ao .gitignore o que não deve
+# ir para o Git. Por isso o `dvc init` acontece antes do primeiro download (Etapa 1).
+
+# Instruções locais do assistente
+CLAUDE.md

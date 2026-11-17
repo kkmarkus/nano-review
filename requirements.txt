@@ -1,0 +1,6 @@
+# O torch (build CPU) é instalado antes, a partir do índice próprio da PyTorch; ver README.
+torch>=2.4
+numpy>=1.26
+pandas>=2.2
+pyarrow>=16
+scikit-learn>=1.5

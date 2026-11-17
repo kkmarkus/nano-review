@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nano-review"
+version = "0.1.0"
+description = "Transformer pequeno, treinado do zero, que gera resenhas de produto em português a partir de uma nota."
+requires-python = ">=3.12"
+# As dependências ficam em requirements*.txt (o torch CPU vem de um índice próprio),
+# então aqui declaramos só o pacote, para o `pip install -e .` funcionar.
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# Garante que o mypy ache o pacote em src/ mesmo se o modo editável do pip mudar.
+mypy_path = "src"
+
+# Essas bibliotecas não trazem tipos; sem isso o modo strict barraria o import delas.
+[[tool.mypy.overrides]]
+module = ["sklearn.*", "pyarrow.*"]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F: erros e bugs óbvios | I: imports ordenados | UP: sintaxe moderna | B: armadilhas comuns
+select = ["E", "F", "I", "UP", "B"]
