@@ -59,7 +59,7 @@ Contagem de nulos medida no arquivo bruto (132.373 linhas).
 | `product_brand` | texto | 91.391 | Contexto para a EDA (69% nulo). |
 | `site_category_lv1` | texto | 6 | Extensão futura: condicionamento por categoria. |
 | `site_category_lv2` | texto | 4.013 | Extensão futura. |
-| `review_title` | texto | 302 | Avaliar na EDA se entra junto com o texto. |
+| `review_title` | texto | 302 | Descartado na limpeza (decisão da EDA): só o `review_text` é alvo da geração. |
 | `overall_rating` | inteiro 1 a 5 | 0 | **Condicionamento** (`<nota_k>`) e rótulo do classificador. |
 | `recommend_to_a_friend` | `Yes`/`No` | 18 | Checagem de consistência com a nota na EDA. |
 | `review_text` | texto | 3.275 | **Alvo da geração.** As linhas sem texto saem na limpeza. |
@@ -67,8 +67,12 @@ Contagem de nulos medida no arquivo bruto (132.373 linhas).
 | `reviewer_gender` | `F`/`M` | 4.136 | **Descartar (dado pessoal).** |
 | `reviewer_state` | sigla da UF | 3.991 | **Descartar (dado pessoal).** |
 
-Além das colunas descartadas, o texto livre (`review_text` e `review_title`) passa por um filtro de
-e-mails, telefones e CPFs na limpeza, porque o cliente pode ter escrito esses dados na própria resenha.
+Além das colunas descartadas, o `review_text` passa por um filtro de e-mails, telefones e CPFs na
+limpeza, porque o cliente pode ter escrito esses dados na própria resenha. O filtro não encontrou
+nenhum caso. Há indício de anonimização na origem (um número aparece como "xxx1111111111xxx"), mas
+não há documentação dela, por isso o filtro continua necessário, inclusive para a entrada da API.
+Fora do filtro ficam códigos de rastreio dos Correios (por exemplo "PP075161001BR", em 4 resenhas):
+não identificam a pessoa sozinhos, e o charter não os exige.
 
 ## Primeiros números
 

@@ -26,6 +26,23 @@ from nano_review.data.clean import (
         "fixo (21) 3456-7890",
         "whats 98765 4321",
         "zap 987654321",
+        # Formatos que o padrão anterior deixava passar (revisão do fim da Etapa 2).
+        "me liga 11987654321",
+        "+5511987654321",
+        "(11) 9 8765-4321",
+        "tel 11 9 8765 4321",
+        "tel 3456-7890",
+        "fone: 3456 7890",
+        "(011) 3456-7890",
+        "11.98765.4321",
+        "98765\u20134321",  # hífen tipográfico (–)
+        "123456789-09",
+        "CPF 123 456 789-09",
+        "123.456.789.09",
+        "joao @ gmail.com",
+        "joao arroba gmail ponto com",
+        "joao arroba gmail.com",
+        "98765\u200b-4321",  # caractere de largura zero no meio do número
     ],
 )
 def test_detects_personal_data(text: str) -> None:
@@ -47,6 +64,27 @@ def test_detects_personal_data(text: str) -> None:
         "CEP 01310-100, entregou às 18:08",
         # URL não é dado pessoal: ela é apagada do texto, mas não derruba a resenha.
         "veja em https://loja.com/produto",
+        # Falsos alarmes do padrão anterior: "NN NNNN NNNN" sem hífen, parênteses nem "tel" não é
+        # telefone, e "40" ou "10" não são DDD.
+        "paguei 10 1500 2000",
+        "de 15 2000 3000 reais",
+        "tamanho 40 9000-1234",
+        "modelo 2017-2018 otimo",
+        "natal@!!!! muito bom",
+        "celular de 32 gb com 4 gb de ram, 128 64 32 16",
+        # Achados da segunda revisão: um número de 2 dígitos que é DDD válido, seguido de um
+        # intervalo, não é telefone. Calçados 33 a 44 são quase todos DDDs.
+        "comprei 21 1500-2000",
+        "nota 11 2017-2018",
+        "tamanho 42 9000-1234",
+        "dou nota 9 2017-2018",
+        "pedido 912345678 atrasou",
+        "paguei 2 @ 5.99 cada",
+        "sigam @americanas.com.br",
+        "veja https://loja.com/p/11987654321 antes",
+        "2x de 49,90 e voltagem 110 220",
+        "chegou 11/12/2018 às 18:30",
+        "EAN 7891234567895",
     ],
 )
 def test_ignores_what_is_not_personal_data(text: str) -> None:
