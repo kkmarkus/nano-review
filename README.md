@@ -10,9 +10,9 @@ produto em português a partir de uma nota de 1 a 5. Projeto integrador individu
 ## Status
 
 - Etapa 0 concluída: esqueleto do repositório, ambiente e porta de qualidade (`make check`).
-- Etapa 1 em andamento: charter (`docs/charter.md`), dados brutos com manifesto
-  (`docs/data_manifest.md`), EDA (`notebooks/01_eda.ipynb`) e pipeline de limpeza e split por
-  produto (`dvc.yaml`). Falta o baseline.
+- Etapa 1 concluída: charter com a hipótese e os limiares (`docs/charter.md`), dados brutos com
+  manifesto (`docs/data_manifest.md`), EDA (`notebooks/01_eda.ipynb`), limpeza e split por produto,
+  rubrica humana (`docs/rubric.md`), juiz de sentimento e baseline de n-gramas (`dvc.yaml`).
 
 ## Como preparar o ambiente (WSL/Ubuntu, Python 3.12)
 
@@ -40,11 +40,14 @@ passar antes de qualquer commit ou entrega.
 ```
 src/nano_review/   código do pacote (cada subpasta nasce na etapa que a usa)
   data/            limpeza (clean.py) e split por produto (split.py)
+  baseline/        juiz de sentimento (judge.py) e geradores de n-gramas (ngram.py, evaluate.py)
+  evaluation/      métricas do charter, as mesmas para o baseline e o Transformer
 tests/             testes automatizados
 docs/              charter, manifesto de dados e relatório
 notebooks/         exploração de dados (não é o pipeline: as regras de verdade ficam em src/)
 reports/figures/   figuras geradas pelos notebooks
-reports/metrics/   métricas geradas pelo pipeline (funil da limpeza, tamanhos do split)
+reports/metrics/   métricas geradas pelo pipeline (limpeza, split, juiz, baseline)
+reports/samples/   amostras geradas, para a rubrica e a análise de erros
 configs/           hiperparâmetros do modelo em YAML
 params.yaml        parâmetros do pipeline de dados (lidos pelo DVC)
 dvc.yaml           estágios do pipeline de dados
@@ -88,6 +91,8 @@ dvc metrics show            # funil da limpeza e tamanhos do split
 |---|---|---|
 | `clean` | `data/raw/B2W-Reviews01.csv` | `data/processed/reviews.parquet`, `reports/metrics/cleaning.json` |
 | `split` | `data/processed/reviews.parquet` | `data/curated/{train,validation,test}.parquet`, `reports/metrics/split.json` |
+| `judge` | `train`, `validation` | `models/judge.joblib`, `reports/metrics/judge.json` |
+| `baseline` | `train`, `validation`, juiz | `reports/metrics/baseline.json`, `reports/samples/baseline.jsonl` |
 
 O split é **por produto** (nenhum produto aparece em dois conjuntos), com 80/10/10 das resenhas.
 **`test.parquet` não é lido por nada até a Etapa 4**: o teste é aberto uma única vez, no fim.

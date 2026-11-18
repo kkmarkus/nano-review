@@ -1,6 +1,6 @@
 # Charter do projeto nano-review
 
-> Versão 0.3 (Etapa 1: distribuição das notas corrigida com os dados reais do `docs/data_manifest.md`). Este documento fixa o problema e a forma de medir o sucesso
+> Versão 0.4 (fim da Etapa 1: baseline medido e limiares da hipótese fixados antes do Transformer). Este documento fixa o problema e a forma de medir o sucesso
 > **antes** de existir modelo, para que a avaliação não seja ajustada depois para caber no resultado.
 
 ## 1. Problema e nicho
@@ -59,14 +59,24 @@ Todas são medidas na **validação** durante o desenvolvimento e no **teste** s
 | Rubrica humana | O que número nenhum pega: fluência, plausibilidade | Rubrica escrita **antes** de lermos amostras (até o início da Etapa 3), aplicada a uma amostra fixa. |
 | Análise de erros | Por que o modelo erra, não só quanto | Pelo menos 10 amostras ruins analisadas uma a uma: nota pedida, texto gerado, o que está errado, hipótese da causa e ação possível. |
 
-Duas cautelas registradas desde já:
+Três cautelas:
 
-1. **O juiz erra.** A coerência depende de um classificador treinado nos dados reais. A acurácia dele na
-   validação real é o teto: um gerador não pode ser julgado mais coerente do que o juiz consegue medir.
-   Por isso a acurácia do classificador é sempre reportada junto.
-2. **Perplexity só se compara na mesma unidade.** O baseline n-grama da Etapa 1 trabalha com palavras e o
-   Transformer vai trabalhar com tokens BPE. Perplexity por palavra e por token BPE não são comparáveis.
-   Na Etapa 2 a comparação passa a usar a mesma tokenização (ou bits por caractere).
+1. **O juiz erra.** A coerência depende de um classificador treinado nos dados reais. A coerência das
+   **resenhas reais** da validação, medida por ele, é o teto: 0,728 (seção 6.1), e não 1,0. Um gerador
+   não pode ser julgado mais coerente do que o juiz consegue enxergar. Por isso a referência real é
+   sempre reportada junto.
+2. **Perplexity só se compara na mesma unidade.** O baseline trabalha com palavras e o Transformer vai
+   trabalhar com tokens BPE. A comparação usa a **perplexity por palavra** para os dois:
+   exp(−log P(texto) / número de palavras), com as palavras contadas pela mesma tokenização do baseline
+   (palavras e pontuação, mais o `<eos>`). Para o Transformer, log P(texto) é a soma dos log-probs dos
+   tokens BPE. A probabilidade de um texto não depende de como ele foi quebrado, então essa conta é
+   justa. Há uma ressalva, e ela **favorece o baseline**: o trigrama junta as palavras raras em `<unk>`
+   e não paga para soletrá-las, e o Transformer paga. Se o Transformer vencer assim, vence com folga.
+3. **O juiz é um saco de palavras.** O TF-IDF ignora a ordem: uma salada de palavras com "ótimo" e
+   "recomendo" parece positiva. O baseline mostrou isso na prática: o unigrama por nota, que não forma
+   frase nenhuma, teve coerência **maior** que o trigrama (0,677 contra 0,407). Por isso a coerência
+   **nunca é lida sozinha**: ela só vale para um modelo que também tem perplexity baixa e passa na
+   rubrica de fluência.
 
 ## 6. Baseline
 
@@ -82,18 +92,61 @@ graça"; sem ele, um número alto pode ser só efeito do desbalanceamento.
   três palavras. Se o Transformer não o superar, o Transformer não se justifica.
 - A regressão logística é a ponte para a rede neural: uma camada linear seguida de softmax, treinada
   com cross-entropy por **descida do gradiente**, o mesmo ciclo forward → loss → backward → atualização
-  dos pesos que treina o Transformer. O relatório explica esse treino passo a passo; a forma de
-  implementar (à mão em PyTorch ou com scikit-learn) é decidida na sub-etapa 6.
+  dos pesos que treina o Transformer. O relatório explica esse treino passo a passo. O juiz foi
+  implementado com o scikit-learn (`LogisticRegression`, que usa L-BFGS, um método de gradiente mais
+  sofisticado que a descida simples; o modelo é o mesmo). O ciclo forward → backward escrito à mão
+  aparece na Etapa 2, no bigrama neural em PyTorch.
+
+### 6.1 Resultados do baseline (validação, 18/11/2026)
+
+Juiz (3 classes), contra o piso da classe majoritária:
+
+| | Acurácia | F1 macro | Recall neg. | Recall neutro | Recall pos. |
+|---|---:|---:|---:|---:|---:|
+| Classe majoritária | 0,592 | 0,248 | 0,00 | 0,00 | 1,00 |
+| TF-IDF + regressão logística | 0,801 | 0,729 | 0,89 | 0,54 | 0,82 |
+
+Geradores (200 amostras por nota, semente 42), contra 200 resenhas reais da validação por nota:
+
+| | Perplexity por palavra ↓ | Coerência macro | Amostras vazias | Distinct-2 | Cópia exata | Cópia de 8 palavras |
+|---|---:|---:|---:|---:|---:|---:|
+| Unigrama por nota (piso) | 516 | 0,677 | 4,2% | 0,84 | 0,0% | 0,0% |
+| **Trigrama (baseline)** | **90,2** | **0,407** | 1,2% | 0,72 | 0,3% | 0,2% |
+| Resenhas reais (referência) | — | 0,728 | 0,0% | 0,65 | 0,0% | 3,3% |
+
+Amostra vazia (sem nenhuma palavra, como "" ou "!!!") conta como **incoerente**: sem essa regra, o juiz
+a chamaria de positiva, o que daria acerto grátis nas notas 4 e 5.
+
+Leitura: o trigrama escreve trechos locais fluentes, mas perde o tom, porque o token `<nota_k>` sai
+da janela de duas palavras logo no começo. Nas notas 1 e 2, a coerência dele (0,38) fica perto do
+acaso entre 3 classes. Fonte: `reports/metrics/judge.json` e `reports/metrics/baseline.json`.
+
+Os pesos da interpolação (λ = 0,2 unigrama, 0,4 bigrama, 0,4 trigrama) foram escolhidos numa fatia
+de 10% do **treino**, separada por produto e com vocabulário próprio, e não na validação. O modelo
+final usa o vocabulário do treino inteiro; a diferença na taxa de `<unk>` entre os dois é pequena.
 
 ## 7. Hipótese
 
-> Em comparação com o baseline de n-gramas, o Transformer treinado do zero tem **perplexity menor** na
-> validação e **coerência com a nota maior**, sem aumentar a taxa de cópia do treino nem reduzir a
-> diversidade.
+> Em comparação com o trigrama, o Transformer treinado do zero tem **perplexity por palavra menor** e
+> **coerência com a nota maior** na validação, **sem copiar o treino mais do que resenhas humanas**
+> copiam e **sem perder diversidade em relação às resenhas reais**.
 
-A hipótese é relativa ao baseline de propósito. Os limiares numéricos (por exemplo "pelo menos X pontos
-a mais de coerência") são definidos depois que o baseline for medido e **antes** de treinar o
-Transformer.
+A hipótese é relativa ao baseline de propósito. Os limiares abaixo foram fixados em 18/11/2026,
+**depois** de medir o baseline e **antes** de treinar o Transformer. Eles não mudam depois de ver os
+resultados dele.
+
+| # | Critério | Limiar | Por quê |
+|---|---|---|---|
+| H1 | Perplexity por palavra | **≤ 72** (20% abaixo dos 90,2 do trigrama) | Uma melhora pequena poderia ser ruído da tokenização. A ressalva do `<unk>` (cautela 2) favorece o trigrama, então 20% é exigente. |
+| H2 | Coerência macro | **≥ 0,57** | Fecha pelo menos metade da distância entre o trigrama (0,407) e o teto do juiz (0,728). Com 200 amostras por nota, o erro padrão da coerência macro é de uns 2 pontos, então 16 pontos de ganho não são ruído. |
+| H3 | Fluência (rubrica, às cegas) | Fração de amostras ruins **menor** que a do trigrama | Impede que a coerência venha de salada de palavras (cautela 3). |
+| H4 | Cópia exata | **≤ 1%** | Resenha idêntica a uma real não é sintética e pode carregar informação de um cliente (erro caro nº 2). |
+| H5 | Cópia de 8 palavras | **≤ 7%** (cerca do dobro dos 3,3% das resenhas reais) | Humanos também repetem trechos ("chegou antes do prazo previsto"). Exigir 0% seria exigir mais do que das pessoas. |
+| H6 | Distinct-2 | **≥ 0,59** (90% dos 0,65 das resenhas reais) | A comparação é com o texto real, e não com o trigrama: o distinct alto do trigrama (0,72) e do piso (0,84) vem de texto incoerente, que é "diverso" à toa. |
+
+**Leitura do resultado:** a hipótese é confirmada se H1 a H6 passam. Se H1 passa e H2 não, o modelo
+aprendeu a escrever mas não a usar a nota, e o experimento "com/sem condicionamento" da Etapa 3 é o
+lugar de investigar. Qualquer resultado é reportado como saiu, inclusive a reprovação.
 
 ## 8. Riscos
 
@@ -121,6 +174,7 @@ Transformer.
 
 ## 10. Decisões pendentes
 
-- [ ] Limiares numéricos da hipótese (depois do baseline, sub-etapa 6).
-- [ ] Rubrica humana (antes da Etapa 3).
-- [ ] Corte de comprimento das resenhas (depois da EDA, sub-etapa 4).
+- [x] Limiares numéricos da hipótese: seção 7 (18/11/2026).
+- [x] Rubrica humana: `docs/rubric.md` (17/11/2026, antes de qualquer amostra gerada).
+- [x] Corte de comprimento das resenhas: feito na Etapa 2, em tokens BPE, com referência de ~128
+  tokens (decisão 13 da EDA, `notebooks/01_eda.ipynb`).
