@@ -60,3 +60,90 @@ stages:
       hash: md5
       md5: 433a083ac593b4e3b2e8228dc72bb34e
       size: 642
+  judge:
+    cmd: python -m nano_review.baseline.judge --train data/curated/train.parquet
+      --validation data/curated/validation.parquet --model models/judge.joblib 
+      --metrics reports/metrics/judge.json --ngram-max 2 --min-df 2 --c 1.0
+    deps:
+    - path: data/curated/train.parquet
+      hash: md5
+      md5: de6f177a019d0d3640803491421ed96b
+      size: 9168996
+    - path: data/curated/validation.parquet
+      hash: md5
+      md5: b91faa31a10db300400d8c65b4329863
+      size: 1188736
+    - path: src/nano_review/baseline/judge.py
+      hash: md5
+      md5: 14f1f61ad192b6021e78489d4455bf7a
+      size: 6966
+    params:
+      params.yaml:
+        judge.c: 1.0
+        judge.min_df: 2
+        judge.ngram_max: 2
+    outs:
+    - path: models/judge.joblib
+      hash: md5
+      md5: 81c5b2e6072958febb8f04b4c884c8cf
+      size: 8492324
+    - path: reports/metrics/judge.json
+      hash: md5
+      md5: b0f0a9e626083e9b2bbd8fa81a1fb774
+      size: 750
+  baseline:
+    cmd: python -m nano_review.baseline.evaluate --train 
+      data/curated/train.parquet --validation data/curated/validation.parquet 
+      --judge models/judge.joblib --metrics reports/metrics/baseline.json 
+      --samples reports/samples/baseline.jsonl --vocab-min-count 2 
+      --tuning-fraction 0.1 --samples-per-rating 200 --max-tokens 100 --seed 42
+    deps:
+    - path: data/curated/train.parquet
+      hash: md5
+      md5: de6f177a019d0d3640803491421ed96b
+      size: 9168996
+    - path: data/curated/validation.parquet
+      hash: md5
+      md5: b91faa31a10db300400d8c65b4329863
+      size: 1188736
+    - path: models/judge.joblib
+      hash: md5
+      md5: 81c5b2e6072958febb8f04b4c884c8cf
+      size: 8492324
+    - path: src/nano_review/baseline/evaluate.py
+      hash: md5
+      md5: 2c24b4cf4c31cedea972c9e86f78cb76
+      size: 8686
+    - path: src/nano_review/baseline/judge.py
+      hash: md5
+      md5: 14f1f61ad192b6021e78489d4455bf7a
+      size: 6966
+    - path: src/nano_review/baseline/ngram.py
+      hash: md5
+      md5: d81dca85a5a3aee636aed276e0a9ce6e
+      size: 11423
+    - path: src/nano_review/data/clean.py
+      hash: md5
+      md5: 099b1a0ca436a99f01ec240af82b860b
+      size: 7266
+    - path: src/nano_review/evaluation/metrics.py
+      hash: md5
+      md5: 99fef7f0dfcecb81203ac5c391b9e2dc
+      size: 4934
+    params:
+      params.yaml:
+        baseline:
+          vocab_min_count: 2
+          tuning_fraction: 0.1
+          samples_per_rating: 200
+          max_tokens: 100
+          seed: 42
+    outs:
+    - path: reports/metrics/baseline.json
+      hash: md5
+      md5: fdfcc721ffde9ec31c5baea9e2ca40cd
+      size: 2722
+    - path: reports/samples/baseline.jsonl
+      hash: md5
+      md5: 6c87823c0ec362fe21ffa2dcce1cfac5
+      size: 401682

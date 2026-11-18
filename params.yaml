@@ -10,3 +10,21 @@ split:
   validation_fraction: 0.1
   test_fraction: 0.1
   seed: 42
+
+judge:
+  # TF-IDF com unigramas e bigramas; termos em menos de min_df resenhas são descartados.
+  ngram_max: 2
+  min_df: 2
+  # Inverso da regularização da regressão logística (valor padrão do scikit-learn, sem ajuste:
+  # ajustar o juiz olhando a validação deixaria a medida dele otimista).
+  c: 1.0
+
+baseline:
+  # Palavras com menos ocorrências que isso no treino viram <unk>.
+  vocab_min_count: 2
+  # Fatia do treino (por produto) usada só para escolher os pesos λ do trigrama.
+  tuning_fraction: 0.1
+  # Amostras geradas por nota; resenhas reais da validação na mesma quantidade, como referência.
+  samples_per_rating: 200
+  max_tokens: 100
+  seed: 42

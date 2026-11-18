@@ -45,3 +45,60 @@ stages:
     metrics:
       - reports/metrics/split.json:
           cache: false
+
+  judge:
+    # Só train e validation: o juiz nunca vê o teste, que é aberto uma vez só, na Etapa 4.
+    cmd: >-
+      python -m nano_review.baseline.judge
+      --train data/curated/train.parquet
+      --validation data/curated/validation.parquet
+      --model models/judge.joblib
+      --metrics reports/metrics/judge.json
+      --ngram-max ${judge.ngram_max}
+      --min-df ${judge.min_df}
+      --c ${judge.c}
+    deps:
+      - src/nano_review/baseline/judge.py
+      - data/curated/train.parquet
+      - data/curated/validation.parquet
+    params:
+      - judge.ngram_max
+      - judge.min_df
+      - judge.c
+    outs:
+      - models/judge.joblib
+    metrics:
+      - reports/metrics/judge.json:
+          cache: false
+
+  baseline:
+    cmd: >-
+      python -m nano_review.baseline.evaluate
+      --train data/curated/train.parquet
+      --validation data/curated/validation.parquet
+      --judge models/judge.joblib
+      --metrics reports/metrics/baseline.json
+      --samples reports/samples/baseline.jsonl
+      --vocab-min-count ${baseline.vocab_min_count}
+      --tuning-fraction ${baseline.tuning_fraction}
+      --samples-per-rating ${baseline.samples_per_rating}
+      --max-tokens ${baseline.max_tokens}
+      --seed ${baseline.seed}
+    deps:
+      - src/nano_review/baseline/evaluate.py
+      - src/nano_review/baseline/ngram.py
+      - src/nano_review/baseline/judge.py
+      - src/nano_review/evaluation/metrics.py
+      - src/nano_review/data/clean.py
+      - data/curated/train.parquet
+      - data/curated/validation.parquet
+      - models/judge.joblib
+    params:
+      - baseline
+    outs:
+      # Amostras pequenas e legíveis: vão para o Git, para a rubrica e a análise de erros.
+      - reports/samples/baseline.jsonl:
+          cache: false
+    metrics:
+      - reports/metrics/baseline.json:
+          cache: false
