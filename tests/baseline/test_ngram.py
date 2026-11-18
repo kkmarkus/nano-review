@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from collections import Counter
 
 import numpy as np
@@ -141,3 +144,32 @@ def test_generation_is_repeatable_and_bounded() -> None:
     assert first == second
     assert len(first) <= 20
     assert set(first) <= vocabulary  # nunca escreve <bos>, <eos>, <unk> nem <nota_k>
+
+
+_GENERATE_IN_NEW_PROCESS = """
+import numpy as np
+from nano_review.baseline.ngram import InterpolatedTrigram, RatingUnigram, to_sequence
+train = [("produto muito bom , recomendo", 5), ("produto ruim , quebrou", 1)] * 3
+vocabulary = {word for text, _ in train for word in text.split()}
+sequences = [to_sequence(text.split(), rating, vocabulary) for text, rating in train]
+for model in (RatingUnigram(), InterpolatedTrigram((0.4, 0.3, 0.3))):
+    model.fit(sequences)
+    print(model.generate(5, np.random.default_rng(0), 20))
+"""
+
+
+def test_generation_does_not_depend_on_python_hash_seed() -> None:
+    # A mesma semente precisa dar as mesmas amostras em processos diferentes. Dentro de um processo
+    # só, a ordem dos sets é fixa e o teste acima não pega o bug; por isso cada geração roda num
+    # Python novo, com uma semente de hash diferente.
+    outputs = {
+        subprocess.run(
+            [sys.executable, "-c", _GENERATE_IN_NEW_PROCESS],
+            env={**os.environ, "PYTHONHASHSEED": str(hash_seed)},
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        for hash_seed in (1, 2, 3, 4)
+    }
+    assert len(outputs) == 1

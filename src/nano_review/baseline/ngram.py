@@ -220,8 +220,14 @@ class RatingUnigram:
 
 
 def _plus_one(counts: Counter[str], vocabulary: set[str]) -> Counter[str]:
-    """Contagens com +1 em toda palavra do vocabulário (Laplace), para sortear."""
-    return Counter({word: counts[word] + 1 for word in vocabulary})
+    """Contagens com +1 em toda palavra do vocabulário (Laplace), para sortear.
+
+    ``sorted`` é o que torna o sorteio reproduzível: a ordem de um ``set`` de textos muda a cada
+    execução do Python (hash randomization), e com ela a palavra que cada número sorteado escolhe.
+    Sem isso, a mesma semente dava amostras diferentes em cada ``dvc repro`` (bug achado ao rodar o
+    pipeline de novo na revisão do fim da Etapa 2).
+    """
+    return Counter({word: counts[word] + 1 for word in sorted(vocabulary)})
 
 
 def _generate(
