@@ -1,0 +1,47 @@
+# Pipeline de dados: `dvc repro` refaz só os estágios cujo código, dado de entrada ou parâmetro
+# mudou. O `dvc.lock` (gerado) registra os hashes de tudo o que entrou e saiu de cada estágio.
+# Rode com o .venv ativado: o `python` dos comandos é o do ambiente.
+
+stages:
+  clean:
+    cmd: >-
+      python -m nano_review.data.clean
+      --input data/raw/B2W-Reviews01.csv
+      --output data/processed/reviews.parquet
+      --metrics reports/metrics/cleaning.json
+      --max-repeat ${clean.max_repeat}
+    deps:
+      - src/nano_review/data/clean.py
+      - data/raw/B2W-Reviews01.csv
+    params:
+      - clean.max_repeat
+    outs:
+      - data/processed/reviews.parquet
+    metrics:
+      # Pequeno e legível: vai para o Git, não para o cache do DVC.
+      - reports/metrics/cleaning.json:
+          cache: false
+
+  split:
+    cmd: >-
+      python -m nano_review.data.split
+      --input data/processed/reviews.parquet
+      --output-dir data/curated
+      --metrics reports/metrics/split.json
+      --validation-fraction ${split.validation_fraction}
+      --test-fraction ${split.test_fraction}
+      --seed ${split.seed}
+    deps:
+      - src/nano_review/data/split.py
+      - data/processed/reviews.parquet
+    params:
+      - split.validation_fraction
+      - split.test_fraction
+      - split.seed
+    outs:
+      - data/curated/train.parquet
+      - data/curated/validation.parquet
+      - data/curated/test.parquet
+    metrics:
+      - reports/metrics/split.json:
+          cache: false

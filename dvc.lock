@@ -1,0 +1,62 @@
+schema: '2.0'
+stages:
+  clean:
+    cmd: python -m nano_review.data.clean --input data/raw/B2W-Reviews01.csv 
+      --output data/processed/reviews.parquet --metrics 
+      reports/metrics/cleaning.json --max-repeat 3
+    deps:
+    - path: data/raw/B2W-Reviews01.csv
+      hash: md5
+      md5: 3d6bb9c7546fe32bb4dff53eaeedafda
+      size: 49453175
+    - path: src/nano_review/data/clean.py
+      hash: md5
+      md5: 099b1a0ca436a99f01ec240af82b860b
+      size: 7266
+    params:
+      params.yaml:
+        clean.max_repeat: 3
+    outs:
+    - path: data/processed/reviews.parquet
+      hash: md5
+      md5: e5118bbe446d48e5695c0eb9479f36d9
+      size: 11503674
+    - path: reports/metrics/cleaning.json
+      hash: md5
+      md5: e8e2822a76bd2546e12b4357b179b152
+      size: 219
+  split:
+    cmd: python -m nano_review.data.split --input data/processed/reviews.parquet
+      --output-dir data/curated --metrics reports/metrics/split.json 
+      --validation-fraction 0.1 --test-fraction 0.1 --seed 42
+    deps:
+    - path: data/processed/reviews.parquet
+      hash: md5
+      md5: e5118bbe446d48e5695c0eb9479f36d9
+      size: 11503674
+    - path: src/nano_review/data/split.py
+      hash: md5
+      md5: 707e5db672a4103ee04d70d451809437
+      size: 4942
+    params:
+      params.yaml:
+        split.seed: 42
+        split.test_fraction: 0.1
+        split.validation_fraction: 0.1
+    outs:
+    - path: data/curated/test.parquet
+      hash: md5
+      md5: b5a17c2dd23678c1c55a424e3408cac2
+      size: 1180621
+    - path: data/curated/train.parquet
+      hash: md5
+      md5: de6f177a019d0d3640803491421ed96b
+      size: 9168996
+    - path: data/curated/validation.parquet
+      hash: md5
+      md5: b91faa31a10db300400d8c65b4329863
+      size: 1188736
+    - path: reports/metrics/split.json
+      hash: md5
+      md5: 433a083ac593b4e3b2e8228dc72bb34e
+      size: 642

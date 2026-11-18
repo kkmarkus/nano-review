@@ -1,0 +1,11 @@
+{
+  "rows_raw": 132373,
+  "removed": {
+    "missing_text": 3275,
+    "personal_data": 0,
+    "empty_after_normalization": 105,
+    "conflicting_rating": 521,
+    "duplicate_text": 2417
+  },
+  "rows_processed": 126055
+}

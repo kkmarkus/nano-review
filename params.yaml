@@ -1,0 +1,12 @@
+# Parâmetros do pipeline de dados. O DVC lê este arquivo: mudar um valor aqui faz o `dvc repro`
+# refazer só os estágios que dependem dele.
+
+clean:
+  # Uma letra repetida mais vezes que isso é cortada ("muuuuuito" -> "muuuito").
+  max_repeat: 3
+
+split:
+  # Frações de resenhas (não de produtos); o treino fica com o resto (80%).
+  validation_fraction: 0.1
+  test_fraction: 0.1
+  seed: 42
