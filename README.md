@@ -13,6 +13,11 @@ produto em português a partir de uma nota de 1 a 5. Projeto integrador individu
 - Etapa 1 concluída: charter com a hipótese e os limiares (`docs/charter.md`), dados brutos com
   manifesto (`docs/data_manifest.md`), EDA (`notebooks/01_eda.ipynb`), limpeza e split por produto,
   rubrica humana (`docs/rubric.md`), juiz de sentimento e baseline de n-gramas (`dvc.yaml`).
+- Etapa 2 concluída: tokenizador BPE treinado só no treino (`notebooks/02_tokenization.ipynb`),
+  DataLoader com lotes agrupados por comprimento, bigrama neural com forward e backward conferidos à
+  mão (`notebooks/03_forward_backward.ipynb`), Transformer com a atenção escrita à mão, primeiro
+  treino e curva (`reports/figures/train_curve.png`) e análise da atenção
+  (`notebooks/04_attention.ipynb`).
 
 ## Como preparar o ambiente (WSL/Ubuntu, Python 3.12)
 
@@ -39,7 +44,10 @@ passar antes de qualquer commit ou entrega.
 
 ```
 src/nano_review/   código do pacote (cada subpasta nasce na etapa que a usa)
-  data/            limpeza (clean.py) e split por produto (split.py)
+  data/            limpeza (clean.py), split por produto (split.py), Dataset e DataLoader (dataset.py)
+  tokenization/    tokenizador BPE (bpe.py) e BPE didático escrito à mão (bpe_demo.py)
+  models/          loss, bigrama neural e Transformer com atenção escrita à mão
+  training/        laço de treino, avaliação, checkpoint e curva (train.py)
   baseline/        juiz de sentimento (judge.py) e geradores de n-gramas (ngram.py, evaluate.py)
   evaluation/      métricas do charter, as mesmas para o baseline e o Transformer
 tests/             testes automatizados
@@ -93,6 +101,11 @@ dvc metrics show            # funil da limpeza e tamanhos do split
 | `split` | `data/processed/reviews.parquet` | `data/curated/{train,validation,test}.parquet`, `reports/metrics/split.json` |
 | `judge` | `train`, `validation` | `models/judge.joblib`, `reports/metrics/judge.json` |
 | `baseline` | `train`, `validation`, juiz | `reports/metrics/baseline.json`, `reports/samples/baseline.jsonl` |
+| `tokenizer` | `train` (a validação só é medida) | `models/tokenizer.json`, `reports/metrics/tokenizer.json` |
+| `train` | `train`, `validation`, tokenizador | `models/transformer.pt`, `reports/metrics/train.json`, `train_log.csv`, `reports/figures/train_curve.png` |
+
+O treino do Transformer leva ~13 minutos em CPU (8 threads). `dvc plots show` desenha a curva de
+treino e validação a partir de `reports/metrics/train_log.csv`.
 
 O split é **por produto** (nenhum produto aparece em dois conjuntos), com 80/10/10 das resenhas.
 **`test.parquet` não é lido por nada até a Etapa 4**: o teste é aberto uma única vez, no fim.

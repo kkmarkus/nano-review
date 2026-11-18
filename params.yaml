@@ -28,3 +28,27 @@ baseline:
   samples_per_rating: 200
   max_tokens: 100
   seed: 42
+
+tokenizer:
+  # Tamanho do vocabulário BPE, contando os 9 tokens especiais. É um dos experimentos da Etapa 3.
+  vocab_size: 4000
+
+train:
+  # Contexto máximo (posições de entrada); resenhas maiores saem do treino (2,4%, decidido na 2.1).
+  block_size: 128
+  # Modelo pequeno para CPU: ~1,3 milhão de parâmetros.
+  d_model: 128
+  n_layers: 4
+  n_heads: 4
+  dropout: 0.1
+  batch_size: 32
+  learning_rate: 0.0003
+  weight_decay: 0.1
+  warmup_steps: 200
+  # Primeiro treino curto (~2 épocas, ~10 min em CPU). Treinos maiores são experimentos da Etapa 3.
+  max_steps: 6000
+  eval_every: 250
+  # Amostra fixa da validação usada durante o treino; o melhor modelo é medido na validação inteira.
+  eval_reviews: 3000
+  samples_per_rating: 3
+  seed: 42

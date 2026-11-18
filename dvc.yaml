@@ -59,6 +59,8 @@ stages:
       --c ${judge.c}
     deps:
       - src/nano_review/baseline/judge.py
+      # O juiz usa a chave de dedupe para reconhecer texto vazio.
+      - src/nano_review/data/clean.py
       - data/curated/train.parquet
       - data/curated/validation.parquet
     params:
@@ -102,3 +104,84 @@ stages:
     metrics:
       - reports/metrics/baseline.json:
           cache: false
+
+  tokenizer:
+    # Treinado só no train; a validação entra apenas para medir o comportamento dele.
+    cmd: >-
+      python -m nano_review.tokenization.bpe
+      --train data/curated/train.parquet
+      --validation data/curated/validation.parquet
+      --output models/tokenizer.json
+      --metrics reports/metrics/tokenizer.json
+      --vocab-size ${tokenizer.vocab_size}
+    deps:
+      - src/nano_review/tokenization/bpe.py
+      # Define os nomes dos tokens especiais (<bos>, <eos>, <unk>, <nota_k>).
+      - src/nano_review/baseline/ngram.py
+      - data/curated/train.parquet
+      - data/curated/validation.parquet
+    params:
+      - tokenizer.vocab_size
+    outs:
+      - models/tokenizer.json
+    metrics:
+      - reports/metrics/tokenizer.json:
+          cache: false
+
+  train:
+    cmd: >-
+      python -m nano_review.training.train
+      --train data/curated/train.parquet
+      --validation data/curated/validation.parquet
+      --tokenizer models/tokenizer.json
+      --checkpoint models/transformer.pt
+      --metrics reports/metrics/train.json
+      --log reports/metrics/train_log.csv
+      --figure reports/figures/train_curve.png
+      --samples reports/samples/transformer_first.jsonl
+      --block-size ${train.block_size}
+      --d-model ${train.d_model}
+      --n-layers ${train.n_layers}
+      --n-heads ${train.n_heads}
+      --dropout ${train.dropout}
+      --batch-size ${train.batch_size}
+      --learning-rate ${train.learning_rate}
+      --weight-decay ${train.weight_decay}
+      --warmup-steps ${train.warmup_steps}
+      --max-steps ${train.max_steps}
+      --eval-every ${train.eval_every}
+      --eval-reviews ${train.eval_reviews}
+      --samples-per-rating ${train.samples_per_rating}
+      --seed ${train.seed}
+    deps:
+      - src/nano_review/training/train.py
+      - src/nano_review/models/transformer.py
+      - src/nano_review/models/loss.py
+      - src/nano_review/data/dataset.py
+      - src/nano_review/tokenization/bpe.py
+      - src/nano_review/baseline/ngram.py
+      - src/nano_review/reproducibility.py
+      - models/tokenizer.json
+      - data/curated/train.parquet
+      - data/curated/validation.parquet
+    params:
+      - train
+    outs:
+      - models/transformer.pt
+      - reports/figures/train_curve.png:
+          cache: false
+      - reports/samples/transformer_first.jsonl:
+          cache: false
+    metrics:
+      - reports/metrics/train.json:
+          cache: false
+    plots:
+      - reports/metrics/train_log.csv:
+          cache: false
+
+# `dvc plots show` desenha a curva de treino e validação direto do CSV do estágio train.
+plots:
+  - curva_de_treino:
+      x: step
+      y:
+        reports/metrics/train_log.csv: [train_loss, val_loss]

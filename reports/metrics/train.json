@@ -1,0 +1,11 @@
+{
+  "parameters": 1321728,
+  "train_reviews": 98427,
+  "train_reviews_dropped_over_block": 2404,
+  "steps": 6000,
+  "train_seconds": 796.8,
+  "best_step": 6000,
+  "best_val_loss_sample": 4.3419,
+  "val_loss": 4.3189,
+  "val_perplexity_per_token": 75.1
+}
