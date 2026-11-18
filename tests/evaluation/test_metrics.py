@@ -65,6 +65,18 @@ def test_copy_rates() -> None:
     rates = copy_rates(samples, train, n=8)
     assert rates["exact"] == pytest.approx(1 / 4)
     assert rates["ngram"] == pytest.approx(2 / 4)
+    assert rates["any"] == pytest.approx(2 / 4)  # a cópia exata também tem trecho de 8
+
+
+def test_short_generic_text_is_not_an_exact_copy() -> None:
+    # "boa qualidade" coincide com o treino sem ter sido decorado; 5 palavras idênticas já contam.
+    # A de 5 palavras não tem trecho de 8, então só o "any" a soma com a cópia parcial.
+    train = ["Boa qualidade.", "chegou rápido e bem embalado", "a b c d e f g h i"]
+    samples = ["boa qualidade", "Chegou rápido e bem embalado!", "x a b c d e f g h", "outra"]
+    rates = copy_rates(samples, train, n=8, min_exact_words=5)
+    assert rates["exact"] == pytest.approx(1 / 4)  # só a de 5 palavras
+    assert rates["ngram"] == pytest.approx(1 / 4)  # só "a b c d e f g h"
+    assert rates["any"] == pytest.approx(2 / 4)
 
 
 def test_coherence_macro_averages_classes() -> None:

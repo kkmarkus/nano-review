@@ -11,12 +11,16 @@ Passos:
 6. Mede o mesmo em N resenhas **reais** da validação por nota. Elas são a referência: mostram o
    máximo de coerência que o juiz consegue enxergar e quanta diversidade e "cópia" o texto
    humano tem naturalmente.
+7. Mede a cópia das resenhas reais **antes do dedupe**, no CSV bruto. Depois do dedupe nenhuma
+   resenha real pode ser cópia exata do treino, então a referência do passo 6 subestima quanto
+   as pessoas se repetem (cautela 4 do charter).
 
 Uso (normalmente pelo ``dvc repro``, que lê os parâmetros de ``params.yaml``)::
 
     python -m nano_review.baseline.evaluate --train data/curated/train.parquet \\
         --validation data/curated/validation.parquet --judge models/judge.joblib \\
         --metrics reports/metrics/baseline.json --samples reports/samples/baseline.jsonl \\
+        --raw data/raw/B2W-Reviews01.csv --max-repeat 3 \\
         --vocab-min-count 2 --samples-per-rating 200 --max-tokens 100 --seed 42
 """
 
@@ -41,6 +45,7 @@ from nano_review.baseline.ngram import (
     to_sequence,
     word_tokenize,
 )
+from nano_review.data.clean import dedupe_key, normalize_text
 from nano_review.evaluation.metrics import coherence, copy_rates, distinct_n, perplexity, words
 
 RATINGS = (1, 2, 3, 4, 5)
@@ -126,6 +131,23 @@ def score_texts(
     }
 
 
+def copy_before_dedupe(
+    raw: pd.DataFrame, train: pd.DataFrame, validation: pd.DataFrame, max_repeat: int
+) -> dict[str, float]:
+    """Cópia do treino nas resenhas reais da validação, contada no CSV bruto (antes do dedupe).
+
+    As linhas são separadas pelos **produtos** do treino e da validação; as de produtos do teste
+    saem antes de qualquer conta. O texto passa pela mesma normalização da limpeza, para a
+    comparação ser com o texto que o modelo vê.
+    """
+    raw = raw[raw["review_text"].notna()]
+    texts = raw["review_text"].map(lambda text: normalize_text(text, max_repeat))
+    has_words = texts.map(dedupe_key) != ""  # as vazias também saem na limpeza
+    train_texts = texts[has_words & raw["product_id"].isin(set(train["product_id"]))]
+    validation_texts = texts[has_words & raw["product_id"].isin(set(validation["product_id"]))]
+    return {k: round(v, 4) for k, v in copy_rates(validation_texts.tolist(), train_texts).items()}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument("--train", type=Path, required=True)
@@ -133,6 +155,8 @@ def main() -> None:
     parser.add_argument("--judge", type=Path, required=True)
     parser.add_argument("--metrics", type=Path, required=True)
     parser.add_argument("--samples", type=Path, required=True)
+    parser.add_argument("--raw", type=Path, required=True)
+    parser.add_argument("--max-repeat", type=int, required=True)
     parser.add_argument("--vocab-min-count", type=int, required=True)
     parser.add_argument("--tuning-fraction", type=float, required=True)
     parser.add_argument("--samples-per-rating", type=int, required=True)
@@ -183,6 +207,12 @@ def main() -> None:
         sample_rows += [{"model": name, "requested_rating": r, "text": t} for r, t in samples]
     metrics["real_validation_reference"] = score_texts(
         reference["overall_rating"].tolist(), reference["review_text"].tolist(), judge, train_texts
+    )
+    raw = pd.read_csv(
+        args.raw, dtype={"product_id": str}, usecols=["product_id", "review_text"], low_memory=False
+    )
+    metrics["real_validation_copy_before_dedupe"] = copy_before_dedupe(
+        raw, train, validation, args.max_repeat
     )
 
     args.metrics.parent.mkdir(parents=True, exist_ok=True)

@@ -60,13 +60,20 @@ def distinct_n(texts: Sequence[str], n: int) -> float:
     return len(set(all_ngrams)) / len(all_ngrams) if all_ngrams else 0.0
 
 
-def copy_rates(samples: Sequence[str], train_texts: Iterable[str], n: int = 8) -> dict[str, float]:
-    """Quanto as amostras copiam o treino.
+def copy_rates(
+    samples: Sequence[str], train_texts: Iterable[str], n: int = 8, min_exact_words: int = 5
+) -> dict[str, float]:
+    """Quanto as amostras copiam o treino. As três frações são sobre **todas** as amostras.
 
-    - ``exact``: fração de amostras idênticas a uma resenha de treino (mesma chave do dedupe).
-    - ``ngram``: fração de amostras com algum trecho de ``n`` palavras seguidas que existe no
-      treino. Pega a cópia parcial, que o ``exact`` deixa passar. Amostras com menos de ``n``
-      palavras não têm como ter esse trecho e contam como "não copiou".
+    - ``exact``: amostras com pelo menos ``min_exact_words`` palavras idênticas a uma resenha de
+      treino (mesma chave do dedupe). Texto curto e genérico ("ótimo", "boa qualidade") coincide
+      com o treino sem que nada tenha sido decorado: as 3 "cópias" do trigrama eram assim (achado
+      da revisão do fim da Etapa 2). Por isso ele não conta como cópia.
+    - ``ngram``: amostras com algum trecho de ``n`` palavras seguidas que existe no treino. Pega a
+      cópia parcial, que o ``exact`` deixa passar. Amostras com menos de ``n`` palavras não têm
+      como ter esse trecho e contam como "não copiou".
+    - ``any``: ``exact`` ou ``ngram``. Uma cópia exata de 5 a 7 palavras não tem trecho de 8, então
+      ``exact`` pode ser maior que ``ngram``; ``any`` junta os dois casos.
     """
     if not samples:
         raise ValueError("nenhuma amostra para avaliar")
@@ -79,12 +86,16 @@ def copy_rates(samples: Sequence[str], train_texts: Iterable[str], n: int = 8) -
         train_keys.add(" ".join(text_words))
         train_ngrams.update(hash(gram) for gram in _ngrams(text_words, n))
 
-    exact = ngram = 0
+    exact = ngram = either = 0
     for sample in samples:
         sample_words = words(sample)
-        exact += " ".join(sample_words) in train_keys
-        ngram += any(hash(gram) in train_ngrams for gram in _ngrams(sample_words, n))
-    return {"exact": exact / len(samples), "ngram": ngram / len(samples)}
+        is_exact = len(sample_words) >= min_exact_words and " ".join(sample_words) in train_keys
+        has_ngram = any(hash(gram) in train_ngrams for gram in _ngrams(sample_words, n))
+        exact += is_exact
+        ngram += has_ngram
+        either += is_exact or has_ngram
+    total = len(samples)
+    return {"exact": exact / total, "ngram": ngram / total, "any": either / total}
 
 
 def coherence(requested_ratings: Sequence[int], judged: Sequence[str]) -> dict[str, object]:

@@ -1,5 +1,6 @@
-# Pipeline de dados: `dvc repro` refaz só os estágios cujo código, dado de entrada ou parâmetro
-# mudou. O `dvc.lock` (gerado) registra os hashes de tudo o que entrou e saiu de cada estágio.
+# Pipeline, dos dados brutos ao modelo: `dvc repro` refaz só os estágios cujo código, dado de
+# entrada ou parâmetro mudou. O `dvc.lock` (gerado) registra os hashes de tudo o que entrou e saiu
+# de cada estágio.
 # Rode com o .venv ativado: o `python` dos comandos é o do ambiente.
 
 stages:
@@ -81,6 +82,8 @@ stages:
       --judge models/judge.joblib
       --metrics reports/metrics/baseline.json
       --samples reports/samples/baseline.jsonl
+      --raw data/raw/B2W-Reviews01.csv
+      --max-repeat ${clean.max_repeat}
       --vocab-min-count ${baseline.vocab_min_count}
       --tuning-fraction ${baseline.tuning_fraction}
       --samples-per-rating ${baseline.samples_per_rating}
@@ -95,8 +98,11 @@ stages:
       - data/curated/train.parquet
       - data/curated/validation.parquet
       - models/judge.joblib
+      # Só para a referência humana de cópia antes do dedupe; as linhas do teste são descartadas.
+      - data/raw/B2W-Reviews01.csv
     params:
       - baseline
+      - clean.max_repeat
     outs:
       # Amostras pequenas e legíveis: vão para o Git, para a rubrica e a análise de erros.
       - reports/samples/baseline.jsonl:

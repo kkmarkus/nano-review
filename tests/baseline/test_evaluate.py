@@ -1,10 +1,10 @@
-"""A escolha dos pesos λ do trigrama."""
+"""A escolha dos pesos λ do trigrama e a referência humana de cópia antes do dedupe."""
 
 from __future__ import annotations
 
 import pandas as pd
 
-from nano_review.baseline.evaluate import LAMBDA_GRID, tune_lambdas
+from nano_review.baseline.evaluate import LAMBDA_GRID, copy_before_dedupe, tune_lambdas
 
 
 def test_tune_lambdas_survives_words_only_in_held_out_products() -> None:
@@ -20,3 +20,23 @@ def test_tune_lambdas_survives_words_only_in_held_out_products() -> None:
 
     assert lambdas in LAMBDA_GRID
     assert len(scores) == len(LAMBDA_GRID)
+
+
+def test_copy_before_dedupe_uses_only_train_and_validation_products() -> None:
+    # p1 é do treino, p2 da validação, p3 do teste. A resenha repetida de p2 conta como cópia do
+    # treino. A de p3 é idêntica a uma de p2, mas o teste não pode virar "treino" da conta: se
+    # entrasse, a segunda resenha de p2 também contaria como cópia.
+    text = "chegou rapido e bem embalado recomendo"
+    other = "nao gostei da cor do produto"
+    raw = pd.DataFrame(
+        {
+            "product_id": ["p1", "p2", "p2", "p3", "p2"],
+            "review_text": [text, text.upper() + "!!", other, other, None],
+        }
+    )
+    train = pd.DataFrame({"product_id": ["p1"]})
+    validation = pd.DataFrame({"product_id": ["p2"]})
+    rates = copy_before_dedupe(raw, train, validation, max_repeat=3)
+    assert rates["exact"] == 0.5  # 1 das 2 resenhas da validação com texto
+    assert rates["ngram"] == 0.0  # 6 palavras: não há trecho de 8
+    assert rates["any"] == 0.5
