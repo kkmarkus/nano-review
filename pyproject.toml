@@ -21,6 +21,9 @@ python_version = "3.12"
 strict = true
 # Garante que o mypy ache o pacote em src/ mesmo se o modo editável do pip mudar.
 mypy_path = "src"
+# O torch deixa alguns métodos sem anotação de tipos (por exemplo Tensor.backward); sem isto o
+# modo strict barraria toda chamada a eles. A exceção vale só para o torch: o resto continua strict.
+untyped_calls_exclude = ["torch"]
 
 # Essas bibliotecas não trazem tipos; sem isso o modo strict barraria o import delas.
 [[tool.mypy.overrides]]
