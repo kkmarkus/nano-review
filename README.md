@@ -53,12 +53,12 @@ src/nano_review/   código do pacote (cada subpasta nasce na etapa que a usa)
 tests/             testes automatizados
 docs/              charter, manifesto de dados e relatório
 notebooks/         exploração de dados (não é o pipeline: as regras de verdade ficam em src/)
-reports/figures/   figuras geradas pelos notebooks
-reports/metrics/   métricas geradas pelo pipeline (limpeza, split, juiz, baseline)
+reports/figures/   figuras geradas pelos notebooks e pelo treino (train_curve.png)
+reports/metrics/   métricas geradas pelo pipeline (limpeza, split, juiz, baseline, tokenizador, treino)
 reports/samples/   amostras geradas, para a rubrica e a análise de erros
-configs/           hiperparâmetros do modelo em YAML
-params.yaml        parâmetros do pipeline de dados (lidos pelo DVC)
-dvc.yaml           estágios do pipeline de dados
+configs/           reservada (vazia por enquanto); os hiperparâmetros ficam no params.yaml
+params.yaml        parâmetros de todos os estágios, dos dados ao treino (lidos pelo DVC)
+dvc.yaml           estágios do pipeline, dos dados brutos ao modelo treinado
 ```
 
 ## Dados e modelos (DVC)
@@ -84,7 +84,7 @@ dvc pull                             # baixa do remote os dados que o Git aponta
 dvc push                             # envia para o remote os dados novos
 ```
 
-### Pipeline de dados
+### Pipeline (dos dados ao modelo)
 
 `data/processed` e `data/curated` não são baixados nem editados: são **gerados** pelo pipeline do
 `dvc.yaml`, com os parâmetros do `params.yaml`.

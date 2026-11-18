@@ -11,8 +11,8 @@ stages:
       size: 49453175
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 099b1a0ca436a99f01ec240af82b860b
-      size: 7266
+      md5: 66b582e16b7a2d17bfd464bdd022f39b
+      size: 10165
     params:
       params.yaml:
         clean.max_repeat: 3
@@ -79,8 +79,8 @@ stages:
       size: 6966
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 099b1a0ca436a99f01ec240af82b860b
-      size: 7266
+      md5: 66b582e16b7a2d17bfd464bdd022f39b
+      size: 10165
     params:
       params.yaml:
         judge.c: 1.0
@@ -99,8 +99,9 @@ stages:
     cmd: python -m nano_review.baseline.evaluate --train 
       data/curated/train.parquet --validation data/curated/validation.parquet 
       --judge models/judge.joblib --metrics reports/metrics/baseline.json 
-      --samples reports/samples/baseline.jsonl --vocab-min-count 2 
-      --tuning-fraction 0.1 --samples-per-rating 200 --max-tokens 100 --seed 42
+      --samples reports/samples/baseline.jsonl --raw data/raw/B2W-Reviews01.csv 
+      --max-repeat 3 --vocab-min-count 2 --tuning-fraction 0.1 
+      --samples-per-rating 200 --max-tokens 100 --seed 42
     deps:
     - path: data/curated/train.parquet
       hash: md5
@@ -110,30 +111,34 @@ stages:
       hash: md5
       md5: b91faa31a10db300400d8c65b4329863
       size: 1188736
+    - path: data/raw/B2W-Reviews01.csv
+      hash: md5
+      md5: 3d6bb9c7546fe32bb4dff53eaeedafda
+      size: 49453175
     - path: models/judge.joblib
       hash: md5
       md5: 81c5b2e6072958febb8f04b4c884c8cf
       size: 8492324
     - path: src/nano_review/baseline/evaluate.py
       hash: md5
-      md5: 2c24b4cf4c31cedea972c9e86f78cb76
-      size: 8686
+      md5: ab7012ae758c874d1d5c513df03a0fc0
+      size: 10403
     - path: src/nano_review/baseline/judge.py
       hash: md5
       md5: 14f1f61ad192b6021e78489d4455bf7a
       size: 6966
     - path: src/nano_review/baseline/ngram.py
       hash: md5
-      md5: d81dca85a5a3aee636aed276e0a9ce6e
-      size: 11423
+      md5: cddc0c7a75494277352399d4865d52a2
+      size: 11791
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 099b1a0ca436a99f01ec240af82b860b
-      size: 7266
+      md5: 66b582e16b7a2d17bfd464bdd022f39b
+      size: 10165
     - path: src/nano_review/evaluation/metrics.py
       hash: md5
-      md5: 99fef7f0dfcecb81203ac5c391b9e2dc
-      size: 4934
+      md5: bd92df8ff96a963516c2ec4193703dad
+      size: 5640
     params:
       params.yaml:
         baseline:
@@ -142,15 +147,16 @@ stages:
           samples_per_rating: 200
           max_tokens: 100
           seed: 42
+        clean.max_repeat: 3
     outs:
     - path: reports/metrics/baseline.json
       hash: md5
-      md5: fdfcc721ffde9ec31c5baea9e2ca40cd
-      size: 2722
+      md5: 8124ca1323eb0b6b3ad2a63cbe3841f9
+      size: 2883
     - path: reports/samples/baseline.jsonl
       hash: md5
-      md5: 6c87823c0ec362fe21ffa2dcce1cfac5
-      size: 401682
+      md5: cae3ac806d42fbc3fd5cf6fd1abb8d5a
+      size: 401158
   tokenizer:
     cmd: python -m nano_review.tokenization.bpe --train 
       data/curated/train.parquet --validation data/curated/validation.parquet 
@@ -167,8 +173,8 @@ stages:
       size: 1188736
     - path: src/nano_review/baseline/ngram.py
       hash: md5
-      md5: d81dca85a5a3aee636aed276e0a9ce6e
-      size: 11423
+      md5: cddc0c7a75494277352399d4865d52a2
+      size: 11791
     - path: src/nano_review/tokenization/bpe.py
       hash: md5
       md5: cafe3034075d739eb7f87eeeffd29c98
@@ -210,8 +216,8 @@ stages:
       size: 269956
     - path: src/nano_review/baseline/ngram.py
       hash: md5
-      md5: d81dca85a5a3aee636aed276e0a9ce6e
-      size: 11423
+      md5: cddc0c7a75494277352399d4865d52a2
+      size: 11791
     - path: src/nano_review/data/dataset.py
       hash: md5
       md5: c366e9dbb594a2cfde061c593a0169dc
@@ -265,11 +271,11 @@ stages:
       size: 52259
     - path: reports/metrics/train.json
       hash: md5
-      md5: f6035ce59b8359a868ec6f19798dc4f9
+      md5: 600c273712f58cb03843c9e54995cb3c
       size: 254
     - path: reports/metrics/train_log.csv
       hash: md5
-      md5: 27dcee3a77cc7a10a67fd2814bb55747
+      md5: 1b2db1db9b08fbf8f050ed8e2bca993b
       size: 1066
     - path: reports/samples/transformer_first.jsonl
       hash: md5

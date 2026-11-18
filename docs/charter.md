@@ -1,6 +1,8 @@
 # Charter do projeto nano-review
 
-> Versão 0.4 (fim da Etapa 1: baseline medido e limiares da hipótese fixados antes do Transformer). Este documento fixa o problema e a forma de medir o sucesso
+> Versão 0.5 (fim da Etapa 2: definição da cópia exata corrigida e cautelas de medida acrescentadas
+> pela revisão, antes de medir qualquer amostra do Transformer; os limiares não mudaram). Versão 0.4:
+> fim da Etapa 1, baseline medido e limiares da hipótese fixados antes do Transformer. Este documento fixa o problema e a forma de medir o sucesso
 > **antes** de existir modelo, para que a avaliação não seja ajustada depois para caber no resultado.
 
 ## 1. Problema e nicho
@@ -41,7 +43,7 @@ Condicionamento da v1: **só a nota**. A categoria do produto fica como extensã
 
 ## 4. Dados
 
-B2W-Reviews01 (Kaggle), resenhas reais da Americanas/Submarino, licença CC BY-NC-SA 4.0 (exige
+B2W-Reviews01 (GitHub da americanas-tech, commit fixado), resenhas reais da Americanas/Submarino, licença CC BY-NC-SA 4.0 (exige
 atribuição, uso não comercial e compartilhamento pela mesma licença). Detalhes no
 `docs/data_manifest.md`. Split por produto em treino, validação e teste; o teste é aberto uma única vez,
 na Etapa 4.
@@ -55,7 +57,7 @@ Todas são medidas na **validação** durante o desenvolvimento e no **teste** s
 | **Coerência com a nota** (principal) | A resenha gerada combina com a nota pedida? | Gerar N amostras por nota, classificar com o classificador de sentimento de 3 classes (1-2 negativo, 3 neutro, 4-5 positivo) e calcular a fração que cai na classe certa. Média **macro** entre as classes, para a nota 5 (a mais comum) não inflar o número. |
 | Perplexity | Quão bem o modelo prevê texto real que ele não viu | exp da perda média (entropia cruzada) por token na validação. |
 | Diversidade | O modelo repete sempre a mesma frase? | distinct-1 e distinct-2: n-gramas únicos divididos pelo total de n-gramas nas amostras. |
-| Cópia do treino | O modelo está decorando? | Fração de amostras idênticas a uma resenha de treino e fração com algum trecho de 8 palavras presente no treino. |
+| Cópia do treino | O modelo está decorando? | Fração de amostras com pelo menos 5 palavras idênticas a uma resenha de treino (cópia exata) e fração com algum trecho de 8 palavras presente no treino. Texto curto e genérico ("ótimo", "boa qualidade") coincide com o treino sem ter sido decorado, por isso não conta como cópia exata. |
 | Rubrica humana | O que número nenhum pega: fluência, plausibilidade | Rubrica escrita **antes** de lermos amostras (até o início da Etapa 3), aplicada a uma amostra fixa. |
 | Análise de erros | Por que o modelo erra, não só quanto | Pelo menos 10 amostras ruins analisadas uma a uma: nota pedida, texto gerado, o que está errado, hipótese da causa e ação possível. |
 
@@ -72,11 +74,28 @@ Três cautelas:
    tokens BPE. A probabilidade de um texto não depende de como ele foi quebrado, então essa conta é
    justa. Há uma ressalva, e ela **favorece o baseline**: o trigrama junta as palavras raras em `<unk>`
    e não paga para soletrá-las, e o Transformer paga. Se o Transformer vencer assim, vence com folga.
+   Os dois precisam ser medidos nas **mesmas resenhas**. O treino do Transformer descarta as 2,4% mais
+   longas que o `block_size`, e a `val_loss` da Etapa 2 também (`reports/metrics/train.json`). A
+   avaliação do H1 não pode descartá-las, porque são justamente as mais difíceis: na Etapa 3, antes de
+   medir o H1, elas passam a ser pontuadas por janela deslizante. **Ainda não implementado.**
 3. **O juiz é um saco de palavras.** O TF-IDF ignora a ordem: uma salada de palavras com "ótimo" e
    "recomendo" parece positiva. O baseline mostrou isso na prática: o unigrama por nota, que não forma
-   frase nenhuma, teve coerência **maior** que o trigrama (0,677 contra 0,407). Por isso a coerência
+   frase nenhuma, teve coerência **maior** que o trigrama (0,678 contra 0,386). Por isso a coerência
    **nunca é lida sozinha**: ela só vale para um modelo que também tem perplexity baixa e passa na
    rubrica de fluência.
+4. **A referência humana de cópia é medida depois da deduplicação.** Como o dedupe apagou os textos
+   repetidos, nenhuma resenha real da validação pode ser cópia exata do treino, e a cópia de 8 palavras
+   delas também sai menor. Medida no CSV bruto (só produtos do treino e da validação), antes do dedupe
+   e da remoção dos textos com notas conflitantes, a referência humana é de **0,72%** de cópia exata
+   (com pelo menos 5 palavras) e **5,5%** de cópia de 8 palavras (`real_validation_copy_before_dedupe`
+   em `reports/metrics/baseline.json`). Esses são os números de comparação para H4 e H5. Duas
+   ressalvas: sem os textos conflitantes, a cópia exata cai para uns 0,63%; e essa referência usa toda
+   a validação, na distribuição natural das notas, enquanto as amostras dos geradores são 200 por nota.
+   O relatório também mostra `any` (cópia exata **ou** de 8 palavras), porque uma cópia exata de 5 a 7
+   palavras não tem trecho de 8.
+5. **A EDA olhou o CSV bruto inteiro**, inclusive linhas que depois foram para o teste, para decidir as
+   regras de limpeza. É prática comum e nenhuma regra usa a nota ou o texto de um exemplo específico,
+   mas é uma limitação: o teste não está 100% fora de toda decisão.
 
 ## 6. Baseline
 
@@ -110,15 +129,21 @@ Geradores (200 amostras por nota, semente 42), contra 200 resenhas reais da vali
 
 | | Perplexity por palavra ↓ | Coerência macro | Amostras vazias | Distinct-2 | Cópia exata | Cópia de 8 palavras |
 |---|---:|---:|---:|---:|---:|---:|
-| Unigrama por nota (piso) | 516 | 0,677 | 4,2% | 0,84 | 0,0% | 0,0% |
-| **Trigrama (baseline)** | **90,2** | **0,407** | 1,2% | 0,72 | 0,3% | 0,2% |
+| Unigrama por nota (piso) | 516 | 0,678 | 3,8% | 0,84 | 0,0% | 0,0% |
+| **Trigrama (baseline)** | **90,2** | **0,386** | 1,3% | 0,71 | 0,0% | 0,2% |
 | Resenhas reais (referência) | — | 0,728 | 0,0% | 0,65 | 0,0% | 3,3% |
+
+Na versão 0.4 esta tabela mostrava um sorteio que não se repetia: a ordem do vocabulário no sorteio
+dependia do *hash* do Python, que muda a cada execução, e a mesma semente dava amostras diferentes
+(coerência do trigrama 0,407 naquela execução). Corrigido na revisão do fim da Etapa 2; os números
+acima se repetem byte a byte a cada `dvc repro`. A perplexity não dependia do sorteio e não mudou. As
+"cópias exatas" do trigrama eram textos de 1 e 2 palavras e deixaram de contar (seção 5).
 
 Amostra vazia (sem nenhuma palavra, como "" ou "!!!") conta como **incoerente**: sem essa regra, o juiz
 a chamaria de positiva, o que daria acerto grátis nas notas 4 e 5.
 
 Leitura: o trigrama escreve trechos locais fluentes, mas perde o tom, porque o token `<nota_k>` sai
-da janela de duas palavras logo no começo. Nas notas 1 e 2, a coerência dele (0,38) fica perto do
+da janela de duas palavras logo no começo. Nas notas 1 e 2, a coerência dele (0,36) fica perto do
 acaso entre 3 classes. Fonte: `reports/metrics/judge.json` e `reports/metrics/baseline.json`.
 
 Os pesos da interpolação (λ = 0,2 unigrama, 0,4 bigrama, 0,4 trigrama) foram escolhidos numa fatia
@@ -135,14 +160,20 @@ A hipótese é relativa ao baseline de propósito. Os limiares abaixo foram fixa
 **depois** de medir o baseline e **antes** de treinar o Transformer. Eles não mudam depois de ver os
 resultados dele.
 
+Única alteração, na versão 0.5, antes de qualquer amostra do Transformer ser medida: a revisão do fim
+da Etapa 2 mostrou que as 3 "cópias exatas" do trigrama eram "otimo", "Boa qualidade." e "boa
+qualidade". Isso é texto genérico, e não memorização. Por isso a cópia exata passou a contar só
+amostras com pelo menos 5 palavras. O número dos limiares não mudou; a justificativa de H4 e H5 passou
+a usar a referência humana medida antes do dedupe (cautela 4).
+
 | # | Critério | Limiar | Por quê |
 |---|---|---|---|
 | H1 | Perplexity por palavra | **≤ 72** (20% abaixo dos 90,2 do trigrama) | Uma melhora pequena poderia ser ruído da tokenização. A ressalva do `<unk>` (cautela 2) favorece o trigrama, então 20% é exigente. |
-| H2 | Coerência macro | **≥ 0,57** | Fecha pelo menos metade da distância entre o trigrama (0,407) e o teto do juiz (0,728). Com 200 amostras por nota, o erro padrão da coerência macro é de uns 2 pontos, então 16 pontos de ganho não são ruído. |
+| H2 | Coerência macro | **≥ 0,57** | Fecha pelo menos metade da distância entre o trigrama e o teto do juiz (0,728). O limiar foi calculado com 0,407, o sorteio da versão 0.4; na medida reproduzível o trigrama tem 0,386, e 0,57 continua acima da metade (0,557). Com 200 amostras por nota, o erro padrão da coerência macro é de uns 2 pontos, então 16 pontos de ganho não são ruído. |
 | H3 | Fluência (rubrica, às cegas) | Fração de amostras ruins **menor** que a do trigrama | Impede que a coerência venha de salada de palavras (cautela 3). |
-| H4 | Cópia exata | **≤ 1%** | Resenha idêntica a uma real não é sintética e pode carregar informação de um cliente (erro caro nº 2). |
-| H5 | Cópia de 8 palavras | **≤ 7%** (cerca do dobro dos 3,3% das resenhas reais) | Humanos também repetem trechos ("chegou antes do prazo previsto"). Exigir 0% seria exigir mais do que das pessoas. |
-| H6 | Distinct-2 | **≥ 0,59** (90% dos 0,65 das resenhas reais) | A comparação é com o texto real, e não com o trigrama: o distinct alto do trigrama (0,72) e do piso (0,84) vem de texto incoerente, que é "diverso" à toa. |
+| H4 | Cópia exata (amostras com pelo menos 5 palavras) | **≤ 1%** | Resenha idêntica a uma real não é sintética e pode carregar informação de um cliente (erro caro nº 2). As pessoas repetem uma resenha inteira em 0,72% dos casos (cautela 4); 1% é pouco acima disso. |
+| H5 | Cópia de 8 palavras | **≤ 7%** | Humanos também repetem trechos ("chegou antes do prazo previsto"): 3,3% depois do dedupe e 5,5% antes (cautela 4). Exigir 0% seria exigir mais do que das pessoas. |
+| H6 | Distinct-2 | **≥ 0,59** (90% dos 0,65 das resenhas reais) | A comparação é com o texto real, e não com o trigrama: o distinct alto do trigrama (0,71) e do piso (0,84) vem de texto incoerente, que é "diverso" à toa. |
 
 **Leitura do resultado:** a hipótese é confirmada se H1 a H6 passam. Se H1 passa e H2 não, o modelo
 aprendeu a escrever mas não a usar a nota, e o experimento "com/sem condicionamento" da Etapa 3 é o
