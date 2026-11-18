@@ -1,18 +1,21 @@
 .PHONY: check lint typecheck test format
 
+# O Python do .venv, para o make funcionar mesmo sem o ambiente ativado no terminal.
+PYTHON ?= .venv/bin/python
+
 # Tudo o que precisa passar antes de entregar ou commitar.
 check: lint typecheck test
 
 lint:
-	python -m ruff check .
-	python -m ruff format --check .
+	$(PYTHON) -m ruff check .
+	$(PYTHON) -m ruff format --check .
 
 typecheck:
-	python -m mypy src tests
+	$(PYTHON) -m mypy src tests
 
 test:
-	python -m pytest
+	$(PYTHON) -m pytest
 
 format:
-	python -m ruff format .
-	python -m ruff check --fix .
+	$(PYTHON) -m ruff format .
+	$(PYTHON) -m ruff check --fix .
