@@ -4,3 +4,5 @@ numpy>=1.26
 pandas>=2.2
 pyarrow>=16
 scikit-learn>=1.5
+# Tokenizador BPE treinado do zero no nosso treino (a biblioteca não traz pesos pré-treinados).
+tokenizers>=0.20

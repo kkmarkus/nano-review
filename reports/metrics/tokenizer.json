@@ -1,0 +1,31 @@
+{
+  "vocab_size": 4000,
+  "train": {
+    "tokens_per_word": 1.503,
+    "unk_rate": 0.0,
+    "sequence_length": {
+      "p50": 26.0,
+      "p90": 71.0,
+      "p95": 96.0,
+      "p99": 178.0,
+      "max": 1537.0,
+      "fraction_over_64": 0.1201,
+      "fraction_over_128": 0.0244,
+      "fraction_over_256": 0.0033
+    }
+  },
+  "validation": {
+    "tokens_per_word": 1.496,
+    "unk_rate": 2e-06,
+    "sequence_length": {
+      "p50": 26.0,
+      "p90": 73.0,
+      "p95": 99.0,
+      "p99": 178.84000000000015,
+      "max": 1014.0,
+      "fraction_over_64": 0.1261,
+      "fraction_over_128": 0.025,
+      "fraction_over_256": 0.0033
+    }
+  }
+}
