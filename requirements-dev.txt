@@ -5,4 +5,9 @@ ruff>=0.5
 pandas-stubs>=2.2
 # Versionamento de dados e modelos (data/ e models/); ferramenta de trabalho, o pacote não depende dele.
 dvc>=3.50
+# Exploração em notebook (EDA no VS Code) e figuras; o pacote não depende deles.
+ipykernel>=6.29
+matplotlib>=3.9
+# Executa o notebook de ponta a ponta sem abrir o editor, para conferir que ele roda do zero.
+nbclient>=0.10
 -e .
