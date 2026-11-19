@@ -200,7 +200,7 @@ stages:
       reports/samples/transformer_first.jsonl --block-size 128 --d-model 128 
       --n-layers 4 --n-heads 4 --dropout 0.1 --batch-size 32 --learning-rate 
       0.0003 --weight-decay 0.1 --warmup-steps 200 --max-steps 6000 --eval-every
-      250 --eval-reviews 3000 --samples-per-rating 3 --seed 42
+      250 --eval-reviews 3000 --patience 8 --samples-per-rating 3 --seed 42
     deps:
     - path: data/curated/train.parquet
       hash: md5
@@ -241,8 +241,8 @@ stages:
       size: 6849
     - path: src/nano_review/training/train.py
       hash: md5
-      md5: 30dc20d34b91408087d406638c8eb71f
-      size: 12121
+      md5: 18867fe18e216305b6cde936b03a6a7a
+      size: 14596
     params:
       params.yaml:
         train:
@@ -258,6 +258,7 @@ stages:
           max_steps: 6000
           eval_every: 250
           eval_reviews: 3000
+          patience: 8
           samples_per_rating: 3
           seed: 42
     outs:
@@ -271,13 +272,107 @@ stages:
       size: 52259
     - path: reports/metrics/train.json
       hash: md5
-      md5: 600c273712f58cb03843c9e54995cb3c
-      size: 254
+      md5: 7292143724ab61c10bf9b775e8046a33
+      size: 356
     - path: reports/metrics/train_log.csv
       hash: md5
-      md5: 1b2db1db9b08fbf8f050ed8e2bca993b
-      size: 1066
+      md5: 8c1110db7353ebd5b81f86c8ac69a236
+      size: 1065
     - path: reports/samples/transformer_first.jsonl
       hash: md5
       md5: 72bee1eb4ca2765fa93e83e528893fc9
       size: 2230
+  evaluate:
+    cmd: python -m nano_review.evaluation.transformer_eval --checkpoint 
+      models/transformer.pt --tokenizer models/tokenizer.json --judge 
+      models/judge.joblib --train data/curated/train.parquet --validation 
+      data/curated/validation.parquet --baseline reports/metrics/baseline.json 
+      --train-metrics reports/metrics/train.json --metrics 
+      reports/metrics/transformer_eval.json --samples 
+      reports/samples/transformer_eval.jsonl --samples-per-rating 200 --stride 
+      64 --seed 42
+    deps:
+    - path: data/curated/train.parquet
+      hash: md5
+      md5: de6f177a019d0d3640803491421ed96b
+      size: 9168996
+    - path: data/curated/validation.parquet
+      hash: md5
+      md5: b91faa31a10db300400d8c65b4329863
+      size: 1188736
+    - path: models/judge.joblib
+      hash: md5
+      md5: 81c5b2e6072958febb8f04b4c884c8cf
+      size: 8492324
+    - path: models/tokenizer.json
+      hash: md5
+      md5: 11d04e2652368580f529c747ecdf251f
+      size: 269956
+    - path: models/transformer.pt
+      hash: md5
+      md5: 2f580771fda03b7e004cf304cce9641e
+      size: 5306287
+    - path: reports/metrics/baseline.json
+      hash: md5
+      md5: 8124ca1323eb0b6b3ad2a63cbe3841f9
+      size: 2883
+    - path: reports/metrics/train.json
+      hash: md5
+      md5: 7292143724ab61c10bf9b775e8046a33
+      size: 356
+    - path: src/nano_review/baseline/evaluate.py
+      hash: md5
+      md5: ab7012ae758c874d1d5c513df03a0fc0
+      size: 10403
+    - path: src/nano_review/baseline/judge.py
+      hash: md5
+      md5: 14f1f61ad192b6021e78489d4455bf7a
+      size: 6966
+    - path: src/nano_review/baseline/ngram.py
+      hash: md5
+      md5: cddc0c7a75494277352399d4865d52a2
+      size: 11791
+    - path: src/nano_review/data/clean.py
+      hash: md5
+      md5: 66b582e16b7a2d17bfd464bdd022f39b
+      size: 10165
+    - path: src/nano_review/evaluation/metrics.py
+      hash: md5
+      md5: bd92df8ff96a963516c2ec4193703dad
+      size: 5640
+    - path: src/nano_review/evaluation/transformer_eval.py
+      hash: md5
+      md5: e296d8578f4a806c86cbcdd30f0a22ed
+      size: 12884
+    - path: src/nano_review/models/transformer.py
+      hash: md5
+      md5: a89a66243bbb9f9043619b767d16fb8d
+      size: 10690
+    - path: src/nano_review/reproducibility.py
+      hash: md5
+      md5: ab9fc0fd5ebf15c009fa9110e91c651a
+      size: 923
+      isexec: true
+    - path: src/nano_review/tokenization/bpe.py
+      hash: md5
+      md5: cafe3034075d739eb7f87eeeffd29c98
+      size: 6849
+    - path: src/nano_review/training/train.py
+      hash: md5
+      md5: 18867fe18e216305b6cde936b03a6a7a
+      size: 14596
+    params:
+      params.yaml:
+        evaluate:
+          samples_per_rating: 200
+          stride: 64
+          seed: 42
+    outs:
+    - path: reports/metrics/transformer_eval.json
+      hash: md5
+      md5: a60108f37c884b32ee673453d956ba08
+      size: 1592
+    - path: reports/samples/transformer_eval.jsonl
+      hash: md5
+      md5: efd388e040f1f520521ace85b03004a9
+      size: 136785

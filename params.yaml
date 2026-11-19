@@ -50,5 +50,16 @@ train:
   eval_every: 250
   # Amostra fixa da validação usada durante o treino; o melhor modelo é medido na validação inteira.
   eval_reviews: 3000
+  # Early stopping: para depois de tantas avaliações seguidas sem melhorar a validação (0 desliga).
+  # Com eval_every 250, 8 avaliações = 2.000 passos sem ganho.
+  patience: 8
   samples_per_rating: 3
+  seed: 42
+
+evaluate:
+  # Amostras por nota, sorteadas com temperatura 1 e sem top-k: a mesma régua do trigrama.
+  samples_per_rating: 200
+  # Resenhas maiores que o block_size são pontuadas em janelas; cada nova janela pontua até
+  # `stride` tokens, vendo pelo menos block_size - 2 - stride tokens de contexto antes deles.
+  stride: 64
   seed: 42

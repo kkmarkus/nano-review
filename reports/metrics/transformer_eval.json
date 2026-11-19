@@ -1,0 +1,77 @@
+{
+  "validation": {
+    "word_perplexity": 218.48,
+    "token_perplexity": 79.03,
+    "tokens_per_word": 1.2327,
+    "reviews": 12617,
+    "reviews_over_block_size": 309
+  },
+  "samples": {
+    "coherence": {
+      "macro": 0.6167,
+      "by_class": {
+        "negative": 0.6775,
+        "neutral": 0.4,
+        "positive": 0.7725
+      },
+      "by_rating": {
+        "1": 0.76,
+        "2": 0.595,
+        "3": 0.4,
+        "4": 0.745,
+        "5": 0.8
+      }
+    },
+    "empty_rate": 0.002,
+    "distinct_1": 0.1953,
+    "distinct_2": 0.6816,
+    "copy": {
+      "exact": 0.003,
+      "ngram": 0.015,
+      "any": 0.018
+    },
+    "mean_words": 16.9
+  },
+  "hypotheses": {
+    "H1": {
+      "measure": "perplexity por palavra",
+      "value": 218.48,
+      "threshold": "<= 72.0",
+      "passed": false
+    },
+    "H2": {
+      "measure": "coerência macro",
+      "value": 0.6167,
+      "threshold": ">= 0.57",
+      "passed": true
+    },
+    "H4": {
+      "measure": "cópia exata",
+      "value": 0.003,
+      "threshold": "<= 0.01",
+      "passed": true
+    },
+    "H5": {
+      "measure": "cópia de 8 palavras",
+      "value": 0.015,
+      "threshold": "<= 0.07",
+      "passed": true
+    },
+    "H6": {
+      "measure": "distinct-2",
+      "value": 0.6816,
+      "threshold": ">= 0.59",
+      "passed": true
+    },
+    "H3": {
+      "measure": "fluência (rubrica, às cegas)",
+      "passed": "pendente"
+    }
+  },
+  "reference": {
+    "trigram_word_perplexity": 90.2,
+    "trigram_coherence_macro": 0.3858,
+    "real_coherence_macro": 0.7275,
+    "real_distinct_2": 0.6547
+  }
+}

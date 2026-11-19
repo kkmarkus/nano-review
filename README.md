@@ -103,9 +103,31 @@ dvc metrics show            # funil da limpeza e tamanhos do split
 | `baseline` | `train`, `validation`, juiz | `reports/metrics/baseline.json`, `reports/samples/baseline.jsonl` |
 | `tokenizer` | `train` (a validação só é medida) | `models/tokenizer.json`, `reports/metrics/tokenizer.json` |
 | `train` | `train`, `validation`, tokenizador | `models/transformer.pt`, `reports/metrics/train.json`, `train_log.csv`, `reports/figures/train_curve.png` |
+| `evaluate` | checkpoint, tokenizador, juiz, `train`, `validation` | `reports/metrics/transformer_eval.json` (H1 a H6), `reports/samples/transformer_eval.jsonl` |
 
-O treino do Transformer leva ~13 minutos em CPU (8 threads). `dvc plots show` desenha a curva de
+O treino do Transformer leva ~13 minutos em CPU, e a avaliação, ~2 minutos. `dvc plots show` desenha a curva de
 treino e validação a partir de `reports/metrics/train_log.csv`.
 
 O split é **por produto** (nenhum produto aparece em dois conjuntos), com 80/10/10 das resenhas.
 **`test.parquet` não é lido por nada até a Etapa 4**: o teste é aberto uma única vez, no fim.
+
+## Experimentos (Etapa 3)
+
+Cada experimento muda **uma** variável e tem a hipótese escrita em `docs/experiments.md` **antes** de
+rodar. O DVC guarda a configuração de cada um, e o MLflow mostra a comparação:
+
+```bash
+source .venv/bin/activate
+dvc exp run -n e2-lr-1e-3 --set-param train.learning_rate=0.001   # treina e avalia com um parâmetro trocado
+dvc exp show                                                      # tabela: parâmetros e métricas de cada experimento
+mlflow ui --host 127.0.0.1 --port 5000                            # painel em http://127.0.0.1:5000
+```
+
+- O nome dado com `-n` vira o nome do run no MLflow, e assim os dois se cruzam.
+- O `train` grava no run os parâmetros, a curva passo a passo e os artefatos. O `evaluate` acrescenta
+  H1 a H6 ao **mesmo** run.
+- O treino para sozinho (early stopping) quando a validação passa `train.patience` avaliações sem
+  melhorar. O checkpoint é sempre o da melhor validação.
+- Rode um experimento por vez, na pasta do projeto: o `mlflow.db` e a pasta `mlruns/` ficam aqui, fora
+  do Git. Os números que contam continuam versionados em `reports/metrics/`.
+- Para promover um experimento ao workspace: `dvc exp apply <nome>`.

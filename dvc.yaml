@@ -157,6 +157,7 @@ stages:
       --max-steps ${train.max_steps}
       --eval-every ${train.eval_every}
       --eval-reviews ${train.eval_reviews}
+      --patience ${train.patience}
       --samples-per-rating ${train.samples_per_rating}
       --seed ${train.seed}
     deps:
@@ -183,6 +184,50 @@ stages:
           cache: false
     plots:
       - reports/metrics/train_log.csv:
+          cache: false
+
+  evaluate:
+    # A régua do charter (H1 a H6) na validação inteira; o teste só é aberto na Etapa 4.
+    cmd: >-
+      python -m nano_review.evaluation.transformer_eval
+      --checkpoint models/transformer.pt
+      --tokenizer models/tokenizer.json
+      --judge models/judge.joblib
+      --train data/curated/train.parquet
+      --validation data/curated/validation.parquet
+      --baseline reports/metrics/baseline.json
+      --train-metrics reports/metrics/train.json
+      --metrics reports/metrics/transformer_eval.json
+      --samples reports/samples/transformer_eval.jsonl
+      --samples-per-rating ${evaluate.samples_per_rating}
+      --stride ${evaluate.stride}
+      --seed ${evaluate.seed}
+    deps:
+      - src/nano_review/evaluation/transformer_eval.py
+      - src/nano_review/evaluation/metrics.py
+      - src/nano_review/baseline/evaluate.py
+      - src/nano_review/baseline/judge.py
+      - src/nano_review/baseline/ngram.py
+      - src/nano_review/models/transformer.py
+      - src/nano_review/tokenization/bpe.py
+      - src/nano_review/data/clean.py
+      - src/nano_review/reproducibility.py
+      - models/transformer.pt
+      - models/tokenizer.json
+      - models/judge.joblib
+      - data/curated/train.parquet
+      - data/curated/validation.parquet
+      - reports/metrics/baseline.json
+      # Só para achar o run do MLflow do treino e gravar a avaliação nele.
+      - reports/metrics/train.json
+      - src/nano_review/training/train.py
+    params:
+      - evaluate
+    outs:
+      - reports/samples/transformer_eval.jsonl:
+          cache: false
+    metrics:
+      - reports/metrics/transformer_eval.json:
           cache: false
 
 # `dvc plots show` desenha a curva de treino e validação direto do CSV do estágio train.
