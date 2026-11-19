@@ -1,4 +1,4 @@
-"""Agenda do LR, grupos do otimizador, avaliação por token, geração e um treino de ponta a ponta."""
+"""LR, otimizador, avaliação, geração, treino de ponta a ponta, early stopping e MLflow."""
 
 from __future__ import annotations
 
@@ -6,12 +6,16 @@ import json
 import sys
 from pathlib import Path
 
+import joblib
+import mlflow
 import pandas as pd
 import pytest
 import torch
 from tokenizers import Tokenizer
 
+from nano_review.baseline.judge import build_judge, rating_to_sentiment
 from nano_review.data.dataset import IGNORE_INDEX, ReviewDataset, make_loader
+from nano_review.evaluation import transformer_eval
 from nano_review.models.transformer import (
     TransformerConfig,
     TransformerLanguageModel,
@@ -85,26 +89,28 @@ def test_generate_runs_to_block_size_plus_one_without_eos() -> None:
     assert len(ids) == TINY.block_size + 1
 
 
-def test_training_script_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # Um treino minúsculo de ponta a ponta: confere que o script grava tudo o que o DVC espera e
-    # que a loss de validação cai.
-    texts = ["Produto muito bom, recomendo.", "Não gostei, veio quebrado.", "Chegou rápido."]
-    df = pd.DataFrame({"review_text": texts * 40, "overall_rating": [5, 1, 4] * 40})
+TEXTS = ["Produto muito bom, recomendo.", "Não gostei, veio quebrado.", "Chegou rápido."]
+PATHS = {
+    "train": "train.parquet",
+    "validation": "validation.parquet",
+    "tokenizer": "tokenizer.json",
+    "checkpoint": "model.pt",
+    "metrics": "metrics.json",
+    "log": "log.csv",
+    "figure": "curve.png",
+    "samples": "samples.jsonl",
+}
+
+
+def _run_training(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **overrides: float
+) -> pd.DataFrame:
+    """Um treino minúsculo pelo script de verdade, com os mesmos argumentos que o DVC passa."""
+    df = pd.DataFrame({"review_text": TEXTS * 40, "overall_rating": [5, 1, 4] * 40})
     df.to_parquet(tmp_path / "train.parquet")
     df.to_parquet(tmp_path / "validation.parquet")
     train_tokenizer(df["review_text"], vocab_size=80).save(str(tmp_path / "tokenizer.json"))
-
-    paths = {
-        "train": "train.parquet",
-        "validation": "validation.parquet",
-        "tokenizer": "tokenizer.json",
-        "checkpoint": "model.pt",
-        "metrics": "metrics.json",
-        "log": "log.csv",
-        "figure": "curve.png",
-        "samples": "samples.jsonl",
-    }
-    numbers = {
+    numbers: dict[str, float] = {
         "block-size": 32,
         "d-model": 16,
         "n-layers": 1,
@@ -114,27 +120,36 @@ def test_training_script_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPa
         "max-steps": 60,
         "eval-every": 20,
         "eval-reviews": 30,
+        "patience": 0,
         "samples-per-rating": 1,
         "seed": 0,
         "dropout": 0.0,
         "learning-rate": 0.01,
         "weight-decay": 0.1,
+        **overrides,
     }
     argv = ["train"]
-    for key, value in paths.items():
+    for key, value in PATHS.items():
         argv += [f"--{key}", str(tmp_path / value)]
     for key, number in numbers.items():
         argv += [f"--{key}", str(number)]
     monkeypatch.setattr(sys, "argv", argv)
     train.main()
+    return df
 
-    for value in paths.values():
+
+def test_training_script_end_to_end(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, isolated_mlflow: str
+) -> None:
+    # Confere que o script grava tudo o que o DVC espera e que a loss de validação cai.
+    df = _run_training(tmp_path, monkeypatch)
+    for value in PATHS.values():
         assert (tmp_path / value).exists(), value
     log = pd.read_csv(tmp_path / "log.csv")
     assert list(log["step"]) == [20, 40, 60]
     assert log["val_loss"].iloc[-1] < log["val_loss"].iloc[0]
     metrics = json.loads((tmp_path / "metrics.json").read_text())
-    assert metrics["steps"] == 60
+    assert metrics["steps"] == 60 and not metrics["stopped_early"]
 
     # O checkpoint recarregado num modelo novo reproduz a loss de validação reportada.
     checkpoint = torch.load(tmp_path / "model.pt", weights_only=True)
@@ -145,3 +160,66 @@ def test_training_script_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     loader = make_loader(ReviewDataset(df, tokenizer, 32), tokenizer, 128, False, 0)
     assert round(evaluate(model, loader), 4) == metrics["val_loss"]
     assert len((tmp_path / "samples.jsonl").read_text().splitlines()) == 5
+
+    # O run do MLflow guarda parâmetros, a curva passo a passo e os artefatos.
+    client = mlflow.MlflowClient(isolated_mlflow)
+    run = client.get_run(metrics["mlflow_run_id"])
+    assert run.data.params["learning_rate"] == "0.01"
+    history = client.get_metric_history(run.info.run_id, "val_loss")
+    assert [m.step for m in history] == [20, 40, 60]
+    artifacts = {a.path for a in client.list_artifacts(run.info.run_id)}
+    assert {"metrics.json", "log.csv", "curve.png", "samples.jsonl"} <= artifacts
+
+
+def test_early_stopping_stops_when_validation_stalls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, isolated_mlflow: str
+) -> None:
+    # Com LR 0 os pesos não mudam: a validação nunca melhora depois da primeira avaliação.
+    # Paciência 2 -> avalia nos passos 10 (melhor), 20 e 30 (2 sem melhora) e para.
+    _run_training(
+        tmp_path,
+        monkeypatch,
+        **{"learning-rate": 0.0, "patience": 2, "eval-every": 10, "max-steps": 100},
+    )
+    metrics = json.loads((tmp_path / "metrics.json").read_text())
+    assert metrics["stopped_early"] and metrics["steps"] == 30
+    assert metrics["best_step"] == 10  # o checkpoint é o do melhor ponto, não o do fim
+    assert list(pd.read_csv(tmp_path / "log.csv")["step"]) == [10, 20, 30]
+
+
+def test_evaluation_is_logged_into_the_training_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, isolated_mlflow: str
+) -> None:
+    # O estágio evaluate acha o run do treino pelo train.json e grava H1 a H6 nele: no painel, a
+    # configuração e o resultado ficam na mesma linha.
+    df = _run_training(tmp_path, monkeypatch)
+    labels = [rating_to_sentiment(r) for r in df["overall_rating"]]
+    judge = build_judge(ngram_max=1, min_df=1, c=1.0).fit(df["review_text"].tolist(), labels)
+    joblib.dump(judge, tmp_path / "judge.joblib")
+    baseline = {
+        "trigram": {"validation_perplexity": 90.2, "coherence": {"macro": 0.386}},
+        "real_validation_reference": {"coherence": {"macro": 0.728}, "distinct_2": 0.65},
+    }
+    (tmp_path / "baseline.json").write_text(json.dumps(baseline))
+    argv = ["evaluate"]
+    for key, value in {
+        "checkpoint": "model.pt",
+        "tokenizer": "tokenizer.json",
+        "judge": "judge.joblib",
+        "train": "train.parquet",
+        "validation": "validation.parquet",
+        "baseline": "baseline.json",
+        "train-metrics": "metrics.json",
+        "metrics": "eval.json",
+        "samples": "eval.jsonl",
+    }.items():
+        argv += [f"--{key}", str(tmp_path / value)]
+    argv += ["--samples-per-rating", "2", "--stride", "8", "--seed", "0"]
+    monkeypatch.setattr(sys, "argv", argv)
+    transformer_eval.main()
+
+    run_id = json.loads((tmp_path / "metrics.json").read_text())["mlflow_run_id"]
+    metrics = mlflow.MlflowClient(isolated_mlflow).get_run(run_id).data.metrics
+    assert "validation.word_perplexity" in metrics
+    assert metrics["hypotheses.H4.passed"] in (0.0, 1.0)
+    assert "final_val_loss" in metrics  # o que o treino gravou continua lá

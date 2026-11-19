@@ -15,6 +15,9 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Aviso interno do MLflow (o banco SQLite dele usa uma opção obsoleta do SQLAlchemy); não é código
+# nosso e não tem o que corrigir aqui. Filtrado só ele, para os outros avisos continuarem aparecendo.
+filterwarnings = ["ignore:.*noload.*:DeprecationWarning:mlflow"]
 
 [tool.mypy]
 python_version = "3.12"

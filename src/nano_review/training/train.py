@@ -13,6 +13,10 @@ O que este script acrescenta ao laço do notebook ``03_forward_backward.ipynb``,
 - **Avaliação periódica na validação e checkpoint do melhor modelo:** a loss de treino sempre cai;
   a de validação é que diz se o modelo está generalizando. O modelo salvo é o do melhor ponto da
   validação, e não o do último passo.
+- **Early stopping (paciência):** se a validação passa ``patience`` avaliações seguidas sem
+  melhorar, o treino para. Continuar só gastaria CPU, e o checkpoint salvo já é o do melhor ponto.
+- **MLflow:** cada treino vira um *run*, com os parâmetros, a curva e os artefatos. Com três ou mais
+  configurações, a memória não basta para lembrar qual gerou qual resultado; o painel compara.
 
 Uso (normalmente pelo ``dvc repro``, que lê os parâmetros de ``params.yaml``)::
 
@@ -29,11 +33,13 @@ import argparse
 import csv
 import json
 import math
+import os
 import time
 from collections.abc import Iterator
 from dataclasses import asdict
 from pathlib import Path
 
+import mlflow
 import pandas as pd
 import torch
 from tokenizers import Tokenizer
@@ -140,7 +146,11 @@ def save_curve(log: list[dict[str, float]], path: Path) -> None:
     plt.close(fig)
 
 
-def main() -> None:
+# Nome do experimento no MLflow: todas as runs do projeto ficam juntas, para comparar.
+MLFLOW_EXPERIMENT = "nano-review"
+
+
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     for name in (
         "train",
@@ -163,16 +173,31 @@ def main() -> None:
         "max-steps",
         "eval-every",
         "eval-reviews",
+        "patience",
         "samples-per-rating",
         "seed",
     ):
         parser.add_argument(f"--{name}", type=int, required=True)
     for name in ("dropout", "learning-rate", "weight-decay"):
         parser.add_argument(f"--{name}", type=float, required=True)
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def main() -> None:
+    args = parse_args()
+    mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    # Dentro de um `dvc exp run`, o DVC põe o nome do experimento nesta variável; assim o run do
+    # MLflow e o experimento do DVC têm o mesmo nome e dá para cruzar os dois.
+    run_name = os.environ.get("DVC_EXP_NAME", "dvc-repro")
+    with mlflow.start_run(run_name=run_name) as run:
+        mlflow.log_params({k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()})
+        _train(args, run.info.run_id)
+
+
+def _train(args: argparse.Namespace, run_id: str) -> None:
     set_seed(args.seed)
     tokenizer = Tokenizer.from_file(str(args.tokenizer))
+    mlflow.log_param("vocab_size", tokenizer.get_vocab_size())
     train_set = ReviewDataset(pd.read_parquet(args.train), tokenizer, args.block_size)
     validation = pd.read_parquet(args.validation)
     # Durante o treino, a validação é medida numa amostra fixa, para a avaliação não custar
@@ -198,11 +223,14 @@ def main() -> None:
 
     log: list[dict[str, float]] = []
     best_val, best_step = math.inf, -1
+    evals_without_improvement = 0
+    stopped_early = False
     # Soma da loss vezes o número de tokens, para a curva de treino ser média por token, como a
     # de validação. (A de treino é medida com dropout ligado; a de validação, sem.)
     window_loss_sum, window_tokens = 0.0, 0
     batches = _forever(train_loader)
     start = time.time()
+    steps_run = 0
     for step in range(args.max_steps):
         learning_rate = learning_rate_at(
             step, args.learning_rate, args.warmup_steps, args.max_steps
@@ -216,6 +244,7 @@ def main() -> None:
         loss.backward()  # backward
         grad_norm = float(torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0))
         optimizer.step()  # atualização
+        steps_run = step + 1
         n_tokens = int((y != IGNORE_INDEX).sum())
         window_loss_sum += loss.item() * n_tokens
         window_tokens += n_tokens
@@ -232,15 +261,24 @@ def main() -> None:
                 "elapsed_seconds": round(time.time() - start, 1),
             }
             log.append(row)
+            mlflow.log_metrics({k: v for k, v in row.items() if k != "step"}, step=step + 1)
             window_loss_sum, window_tokens = 0.0, 0
             print(json.dumps(row))
             if val_loss < best_val:
                 best_val, best_step = val_loss, step + 1
+                evals_without_improvement = 0
                 args.checkpoint.parent.mkdir(parents=True, exist_ok=True)
                 torch.save(
                     {"config": asdict(config), "state_dict": model.state_dict(), "step": step + 1},
                     args.checkpoint,
                 )
+            else:
+                evals_without_improvement += 1
+                # patience 0 desliga o early stopping: o treino vai até max_steps.
+                if args.patience and evals_without_improvement >= args.patience:
+                    stopped_early = True
+                    print(f"early stopping: {args.patience} avaliações sem melhorar")
+                    break
 
     train_seconds = time.time() - start
     checkpoint = torch.load(args.checkpoint, weights_only=True)
@@ -248,7 +286,7 @@ def main() -> None:
     full_val_loss = evaluate(model, make_loader(full_validation_set, tokenizer, 128, False, 0))
 
     # Amostras de sanidade: só para ler e ver se o texto faz sentido. A avaliação formal
-    # (coerência, cópia, diversidade, perplexity por palavra) é da Etapa 3.
+    # (coerência, cópia, diversidade, perplexity por palavra) é do estágio evaluate.
     generator = torch.Generator().manual_seed(args.seed)
     bos, eos = special_id(tokenizer, BOS), special_id(tokenizer, EOS)
     args.samples.parent.mkdir(parents=True, exist_ok=True)
@@ -265,15 +303,19 @@ def main() -> None:
         "parameters": count_parameters(model),
         "train_reviews": len(train_set),
         "train_reviews_dropped_over_block": train_set.n_dropped,
-        "steps": args.max_steps,
+        "max_steps": args.max_steps,
+        "steps": steps_run,
+        "stopped_early": stopped_early,
         "train_seconds": round(train_seconds, 1),
         "best_step": best_step,
         "best_val_loss_sample": round(best_val, 4),
-        # Loss por token BPE na validação inteira (só as resenhas que cabem no block_size). Ela
-        # inclui a amostra que escolheu o checkpoint, então é levemente otimista; o número sem
-        # viés é o do teste, na Etapa 4. A perplexity por palavra do H1 é calculada na Etapa 3.
+        # Loss por token BPE na validação (só as resenhas que cabem no block_size). Ela inclui a
+        # amostra que escolheu o checkpoint, então é levemente otimista; o número sem viés é o do
+        # teste, na Etapa 4. A perplexity por palavra do H1 sai do estágio evaluate.
         "val_loss": round(full_val_loss, 4),
         "val_perplexity_per_token": round(math.exp(full_val_loss), 2),
+        # O estágio evaluate lê este id e grava H1 a H6 no mesmo run do MLflow.
+        "mlflow_run_id": run_id,
     }
     args.metrics.parent.mkdir(parents=True, exist_ok=True)
     args.metrics.write_text(json.dumps(metrics, indent=2) + "\n")
@@ -282,6 +324,13 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(log)
     save_curve(log, args.figure)
+    # Prefixo "final_": a val_loss final é da validação inteira e não pode cair na mesma curva
+    # da val_loss do treino, que é da amostra fixa (bug achado pelo teste de ponta a ponta).
+    mlflow.log_metrics(
+        {f"final_{k}": float(v) for k, v in metrics.items() if isinstance(v, int | float)}
+    )
+    for path in (args.metrics, args.log, args.figure, args.samples):
+        mlflow.log_artifact(str(path))
     print(json.dumps(metrics, indent=2))
 
 

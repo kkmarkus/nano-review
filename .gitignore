@@ -8,8 +8,9 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 
-# Rastreamento de experimentos (MLflow)
+# Rastreamento de experimentos (MLflow): banco local das runs e os artefatos delas
 mlruns/
+mlflow.db
 
 # Editor / sistema
 .idea/
