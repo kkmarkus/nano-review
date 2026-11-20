@@ -1,0 +1,33 @@
+{
+  "rubric_version": "1.1",
+  "seed": 2029,
+  "per_rating": 10,
+  "rows": 150,
+  "sources": {
+    "transformer": {
+      "spec": "reports/samples/inference.jsonl@t1.0-k0",
+      "md5": "d79929776e51b1f5002cadb4d2be4bbe"
+    },
+    "transformer_k50": {
+      "spec": "reports/samples/inference.jsonl@t1.0-k50",
+      "md5": "d79929776e51b1f5002cadb4d2be4bbe"
+    },
+    "real": {
+      "spec": "reports/samples/test_real_control.jsonl",
+      "md5": "021dd784e065f2ab8e8e19023cefb959"
+    }
+  },
+  "excluded_as_already_seen": {
+    "transformer": 86,
+    "transformer_k50": 1,
+    "real": 0
+  },
+  "exclude_from": [
+    "reports/rubric/sheet_v1.csv"
+  ],
+  "pool_sizes": {
+    "transformer": 914,
+    "transformer_k50": 999,
+    "real": 50
+  }
+}
