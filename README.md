@@ -198,3 +198,67 @@ python -m nano_review.evaluation.error_analysis --sheet reports/rubric/sheet_v1.
 - As regras de pontuação estão em `docs/rubric.md`. O lote v1 foi pontuado com a versão 1.0; a 1.1
   vale para as avaliações seguintes.
 - A chave (`key_v1.csv`) só é aberta depois que a planilha inteira foi pontuada.
+
+O lote v2 (Etapa 4.3, rubrica v1.1) lê as fontes de arquivos `.jsonl` e exclui os textos já lidos no
+v1 (`docs/final_test.md`). O `--version` do `summarize` precisa ser o da rubrica usada (o padrão é
+1.0):
+
+```bash
+python -m nano_review.evaluation.rubric batch-jsonl \
+    --source transformer=reports/samples/inference.jsonl@t1.0-k0 \
+    --source transformer_k50=reports/samples/inference.jsonl@t1.0-k50 \
+    --source real=reports/samples/test_real_control.jsonl \
+    --exclude reports/rubric/sheet_v1.csv --per-rating 10 --seed 2029 \
+    --out-dir reports/rubric --suffix _v2 --version 1.1
+python -m nano_review.evaluation.rubric summarize --sheet reports/rubric/sheet_v2.csv \
+    --key reports/rubric/key_v2.csv --metrics reports/metrics/rubric_v2.json --version 1.1
+```
+
+## API e página de demonstração (Etapa 4)
+
+A API serve o gerador do produto (`nano_review.inference.generator`): a decodificação escolhida na
+Etapa 4.1 e os filtros da 4.2 (`docs/inference.md`). O modelo carrega uma vez, quando a API sobe.
+
+```bash
+source .venv/bin/activate
+uvicorn nano_review.api.app:app --host 127.0.0.1 --port 8000
+```
+
+O `127.0.0.1` deixa a API visível só nesta máquina. Ela não tem autenticação nem limite de pedidos,
+porque foi feita para a demonstração e para testes locais. No Docker (Etapa 4.5), ela escuta em
+`0.0.0.0` **dentro** do contêiner, e quem decide o que fica exposto é a porta publicada.
+
+| Rota | O que faz |
+|---|---|
+| `GET /` | Página de demonstração: escolher a nota e a quantidade, gerar e copiar as resenhas (o estilo e o script dela ficam em `/static`) |
+| `GET /docs` | Documentação automática, onde dá para testar cada rota |
+| `GET /health` | Se o modelo está carregado, o número de parâmetros, o hash do checkpoint e os padrões |
+| `POST /generate` | As resenhas para uma nota |
+
+```bash
+curl -X POST http://127.0.0.1:8000/generate \
+  -H "Content-Type: application/json" \
+  -d '{"rating": 5, "n": 3}'
+```
+
+| Campo do pedido | Aceito | Padrão |
+|---|---|---|
+| `rating` | inteiro de 1 a 5 | obrigatório |
+| `n` | inteiro de 1 a 20 | 1 |
+| `temperature` | de 0,1 a 2 | 1,0 |
+| `top_k` | inteiro de 0 ao tamanho do vocabulário (8.000); 0 pede "sem top-k" | sem top-k |
+| `seed` | inteiro de 0 a 2⁶³ − 1; o mesmo pedido com a mesma semente repete o texto | sorteada (abaixo de 2⁵³, para o JavaScript da página não arredondar), e devolvida na resposta |
+
+- **422, pedido inválido:** tipo errado, fora do intervalo ou campo que não existe. O `detail` vem
+  em dois formatos: uma lista (`type`, `loc`, `msg`), quando o formato do pedido está errado, ou um
+  texto, quando o pedido é bem formado mas o gerador o recusa (um top-k maior que o vocabulário).
+- **503, tentativas esgotadas:** quando as 5 tentativas de um texto caem nos filtros, o pedido
+  **inteiro** falha, com os motivos, e as resenhas já geradas são descartadas. Com o padrão, isso não
+  aconteceu em 3.000 resenhas. Longe dele, acontece: em 20 pedidos de uma resenha, 2 falharam com
+  temperatura 0,1 e 1 com temperatura 2,0. Num pedido de várias resenhas, a chance de falha cresce
+  com o número delas.
+- **Toda resposta traz `"synthetic": true` e o aviso de que o texto é sintético.** Ele serve para
+  testar software e não pode ser publicado como avaliação de um cliente real (`docs/charter.md`,
+  seção 9).
+- **Os caminhos do modelo** vêm das variáveis de ambiente `NANO_REVIEW_CHECKPOINT` e
+  `NANO_REVIEW_TOKENIZER`, com o padrão `models/transformer.pt` e `models/tokenizer.json`.

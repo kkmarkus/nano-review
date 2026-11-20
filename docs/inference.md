@@ -210,3 +210,54 @@ novo (o que duplicaria os 12 runs no MLflow), a combinação T 1,0 com top-k 50 
 o código atual: as 1.000 amostras saíram idênticas, texto a texto, às gravadas. A combinação padrão
 já é coberta por um teste (a amostragem nova sorteia os mesmos tokens da régua da Etapa 3). O hash
 novo foi registrado com `dvc commit -f decoding`.
+
+## 4.4 A API
+
+`nano_review.api.app` serve o `ReviewGenerator` por HTTP, com FastAPI. As rotas e os campos estão
+no README. As decisões de desenho:
+
+- **O modelo carrega uma vez, quando a API sobe** (o `lifespan` do FastAPI), e não a cada pedido.
+  Carregar 5 milhões de pesos custa mais que gerar uma resenha. O uvicorn só aceita conexões depois
+  que o modelo carregou, e uma falha no carregamento derruba a subida. Um cliente vê então "conexão
+  recusada", e não um 503. A checagem de saúde do Docker (4.5) precisa tratar os dois casos como
+  "fora do ar". O 503 do `/health` existe para quando o app roda sem esse ciclo de subida, como nos
+  testes.
+- **A validação acontece duas vezes.** A primeira é no formato do pedido, com pydantic em modo
+  `strict`: `"5"`, `true` ou `3.0` não viram nota, e campo desconhecido é erro. Ela gera o 422 e a
+  documentação do `/docs`. A segunda é no gerador, que não confia em quem o chama. Um erro dessa
+  segunda validação (por exemplo, um top-k maior que o vocabulário) também vira 422, e nunca 500.
+- **Dois erros 500 encontrados na revisão independente, e corrigidos:**
+  - **Temperatura positiva minúscula.** Com `1e-40`, a divisão dos logits estourava o float32, e o
+    sorteio quebrava. A API agora exige temperatura de pelo menos 0,1, o mesmo mínimo da página. O
+    gerador não foi mudado, porque dois estágios do DVC dependem dele, um deles congelado.
+  - **`NaN` e `Infinity` no corpo.** O JSON do Python aceita esses valores, e o 422 padrão do
+    FastAPI tentava devolver o valor recebido, que não cabe numa resposta JSON. O 422 agora devolve
+    só o tipo, o lugar e a mensagem do erro.
+- **O 503 traz os motivos** quando as 5 tentativas de um texto caem nos filtros, e derruba o pedido
+  inteiro: o produto não entrega menos resenhas do que as pedidas sem avisar. Com a decodificação
+  padrão, isso não aconteceu nenhuma vez em 3.000 resenhas (4.2 e teste final). Longe do padrão,
+  acontece: em 20 pedidos de uma resenha (5 notas × 4 sementes), deram 503 dois com temperatura
+  0,1, um com 2,0 e nenhum com 0,5 ou 1,0. A página avisa isso perto das opções avançadas.
+- **A semente usada volta na resposta.** Sem semente, a API sorteia uma e a devolve. O resultado
+  continua aleatório, mas um bom texto pode ser repetido depois. A semente sorteada fica abaixo de
+  2⁵³, o maior inteiro que o JavaScript guarda sem arredondar; sem isso, a página mostraria uma
+  semente que não repete o texto.
+- **Toda resposta diz o que o texto é** (`"synthetic": true` e um aviso). É a seção de ética do
+  charter aplicada ao produto. A página mostra o mesmo aviso no topo.
+- **A rota de geração é uma função comum (`def`), e não `async`.** Gerar é trabalho de CPU, e o
+  FastAPI roda funções comuns numa thread separada. Assim o `/health` continua respondendo durante
+  uma geração.
+- **A página são três arquivos, sem bibliotecas externas:** a estrutura (`index.html`), o estilo
+  (`style.css`) e o comportamento (`app.js`). A API serve o CSS e o JavaScript em `/static`, e a
+  página funciona offline na demonstração. O texto do modelo entra na página como texto
+  (`textContent`), e nunca como HTML: nada do que o modelo escreve vira código no navegador.
+- **Os testes não dependem do checkpoint real.** A API recebe o carregador como parâmetro
+  (`create_app(load)`), e os testes passam um modelo minúsculo.
+- **Limite conhecido, a concorrência.** Pedidos simultâneos dividem a mesma CPU: o torch já usa
+  vários núcleos por pedido, e vários pedidos ao mesmo tempo disputam os mesmos núcleos. Para a
+  demonstração, com um usuário, isso não pesa. O modelo é compartilhado entre os pedidos, e isso é
+  seguro porque ele fica sempre em modo de avaliação e cada pedido tem o seu próprio sorteador.
+
+**Teste de fumaça com o modelo real (20/11/2026):** o `/health` respondeu com 5.240.320 parâmetros e o
+hash do checkpoint igual ao registrado no DVC. O `/generate` devolveu 5 resenhas em 1,4 s, todas na
+primeira tentativa. Um pedido inválido deu 422, e a página e o `/docs` responderam 200.

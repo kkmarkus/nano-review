@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nano-review</title>
+<!-- Sem bibliotecas externas: funciona offline, na demonstração ao vivo. O estilo e o
+     comportamento ficam em style.css e app.js, servidos pela API em /static. -->
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main>
+  <div class="card">
+    <div class="top">
+      <h1>nano-review</h1>
+      <span id="health" class="small">verificando o modelo…</span>
+    </div>
+    <p class="muted subtitle">
+      Resenhas sintéticas de produto, geradas por um Transformer treinado do zero.
+    </p>
+    <div class="notice">
+      Texto sintético para testar software. Não publique como avaliação de um cliente real.
+    </div>
+
+    <div class="row">
+      <div>
+        <p class="label" id="rating-label">Nota</p>
+        <div class="ratings" id="ratings" role="group" aria-labelledby="rating-label">
+          <button type="button" data-rating="1" aria-pressed="false">1</button>
+          <button type="button" data-rating="2" aria-pressed="false">2</button>
+          <button type="button" data-rating="3" aria-pressed="false">3</button>
+          <button type="button" data-rating="4" aria-pressed="false">4</button>
+          <button type="button" data-rating="5" aria-pressed="true">5</button>
+        </div>
+      </div>
+      <div>
+        <label for="n">Quantidade (1 a 20)</label>
+        <input id="n" type="number" min="1" max="20" value="3">
+      </div>
+    </div>
+
+    <hr>
+    <p class="label">Opções avançadas</p>
+    <div class="advanced">
+      <div>
+        <label for="temperature" class="small">Temperatura (padrão 1,0)</label>
+        <input id="temperature" type="number" min="0.1" max="2" step="0.1" placeholder="1,0">
+      </div>
+      <div>
+        <label for="top_k" class="small">Top-k (0 = sem top-k)</label>
+        <input id="top_k" type="number" min="0" step="1" placeholder="0">
+      </div>
+      <div>
+        <label for="seed" class="small">Semente (opcional)</label>
+        <input id="seed" type="number" min="0" step="1" placeholder="aleatória">
+      </div>
+    </div>
+    <p class="small hint">
+      Temperatura menor ou top-k deixam o texto mais limpo, mas menos variado e mais copiado do
+      treino (docs/inference.md). Longe do padrão, os filtros também reprovam mais, e um pedido
+      com muitas resenhas pode falhar.
+    </p>
+
+    <button type="button" id="generate">Gerar resenhas</button>
+    <div id="error" class="error"></div>
+    <div id="results"></div>
+    <p id="summary" class="small"></p>
+    <p class="small">A API completa, para testar cada rota: <a href="/docs">/docs</a></p>
+  </div>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -3,6 +3,8 @@ pytest>=8
 mypy>=1.10
 ruff>=0.5
 pandas-stubs>=2.2
+# Cliente HTTP que o TestClient do FastAPI usa para testar a API sem subir um servidor.
+httpx>=0.27
 # Versionamento de dados e modelos (data/ e models/); ferramenta de trabalho, o pacote não depende dele.
 dvc>=3.50
 # Exploração em notebook (EDA no VS Code) e figuras; o pacote não depende deles.

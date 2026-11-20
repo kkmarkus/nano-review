@@ -13,6 +13,11 @@ requires-python = ">=3.12"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# A página da demonstração (Etapa 4) são arquivos, e não código: sem isto, uma instalação que não
+# seja editável (a do Docker, por exemplo) deixaria o HTML, o CSS e o JavaScript de fora.
+[tool.setuptools.package-data]
+nano_review = ["api/static/*.html", "api/static/*.css", "api/static/*.js"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Aviso interno do MLflow (o banco SQLite dele usa uma opção obsoleta do SQLAlchemy); não é código
