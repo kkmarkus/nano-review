@@ -160,6 +160,7 @@ stages:
       --patience ${train.patience}
       --samples-per-rating ${train.samples_per_rating}
       --seed ${train.seed}
+      --conditioning ${train.conditioning}
     deps:
       - src/nano_review/training/train.py
       - src/nano_review/models/transformer.py

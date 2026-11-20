@@ -35,7 +35,7 @@ import json
 import math
 import os
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import asdict
 from pathlib import Path
 
@@ -46,7 +46,7 @@ from tokenizers import Tokenizer
 from torch.utils.data import DataLoader
 
 from nano_review.baseline.ngram import BOS, EOS, rating_token
-from nano_review.data.dataset import IGNORE_INDEX, ReviewDataset, make_loader
+from nano_review.data.dataset import IGNORE_INDEX, ReviewDataset, given_tokens, make_loader
 from nano_review.models.loss import language_model_loss
 from nano_review.models.transformer import (
     TransformerConfig,
@@ -150,6 +150,27 @@ def save_curve(log: list[dict[str, float]], path: Path) -> None:
 MLFLOW_EXPERIMENT = "nano-review"
 
 
+def default_tracking_uri(environ: Mapping[str, str]) -> str | None:
+    """Onde o MLflow grava as runs, quando ninguém disse explicitamente (``MLFLOW_TRACKING_URI``).
+
+    Um ``dvc exp run --temp`` roda cada experimento numa cópia temporária do repositório, e o
+    padrão do MLflow (um ``mlflow.db`` na pasta atual) sumiria junto com a cópia. O DVC informa a
+    raiz do projeto original em ``DVC_ROOT``; ancorar o banco lá junta todas as runs num lugar só.
+    Fora do DVC, vale o padrão do MLflow (``None``).
+    """
+    if "MLFLOW_TRACKING_URI" in environ or "DVC_ROOT" not in environ:
+        return None
+    return f"sqlite:///{Path(environ['DVC_ROOT']) / 'mlflow.db'}"
+
+
+def configure_mlflow() -> None:
+    """Aponta o MLflow para o banco do projeto e escolhe o experimento ``nano-review``."""
+    uri = default_tracking_uri(os.environ)
+    if uri is not None:
+        mlflow.set_tracking_uri(uri)
+    mlflow.set_experiment(MLFLOW_EXPERIMENT)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     for name in (
@@ -180,12 +201,23 @@ def parse_args() -> argparse.Namespace:
         parser.add_argument(f"--{name}", type=int, required=True)
     for name in ("dropout", "learning-rate", "weight-decay"):
         parser.add_argument(f"--{name}", type=float, required=True)
+    # Com ou sem o token da nota (a ablação E6). Texto, e não flag, para o DVC passar o valor do
+    # params.yaml do mesmo jeito que os outros.
+    parser.add_argument("--conditioning", type=_parse_bool, required=True)
     return parser.parse_args()
+
+
+def _parse_bool(text: str) -> bool:
+    if text.lower() in ("true", "1"):
+        return True
+    if text.lower() in ("false", "0"):
+        return False
+    raise argparse.ArgumentTypeError(f"esperava true ou false, veio {text!r}")
 
 
 def main() -> None:
     args = parse_args()
-    mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    configure_mlflow()
     # Dentro de um `dvc exp run`, o DVC põe o nome do experimento nesta variável; assim o run do
     # MLflow e o experimento do DVC têm o mesmo nome e dá para cruzar os dois.
     run_name = os.environ.get("DVC_EXP_NAME", "dvc-repro")
@@ -198,15 +230,20 @@ def _train(args: argparse.Namespace, run_id: str) -> None:
     set_seed(args.seed)
     tokenizer = Tokenizer.from_file(str(args.tokenizer))
     mlflow.log_param("vocab_size", tokenizer.get_vocab_size())
-    train_set = ReviewDataset(pd.read_parquet(args.train), tokenizer, args.block_size)
+    conditioning = args.conditioning
+    train_set = ReviewDataset(pd.read_parquet(args.train), tokenizer, args.block_size, conditioning)
     validation = pd.read_parquet(args.validation)
     # Durante o treino, a validação é medida numa amostra fixa, para a avaliação não custar
     # mais que o próprio treino. No fim, o melhor modelo é medido na validação inteira.
     validation_sample = validation.sample(n=args.eval_reviews, random_state=args.seed)
     eval_loader = make_loader(
-        ReviewDataset(validation_sample, tokenizer, args.block_size), tokenizer, 128, False, 0
+        ReviewDataset(validation_sample, tokenizer, args.block_size, conditioning),
+        tokenizer,
+        128,
+        False,
+        0,
     )
-    full_validation_set = ReviewDataset(validation, tokenizer, args.block_size)
+    full_validation_set = ReviewDataset(validation, tokenizer, args.block_size, conditioning)
     train_loader = make_loader(train_set, tokenizer, args.batch_size, True, args.seed)
 
     config = TransformerConfig(
@@ -269,7 +306,13 @@ def _train(args: argparse.Namespace, run_id: str) -> None:
                 evals_without_improvement = 0
                 args.checkpoint.parent.mkdir(parents=True, exist_ok=True)
                 torch.save(
-                    {"config": asdict(config), "state_dict": model.state_dict(), "step": step + 1},
+                    {
+                        "config": asdict(config),
+                        "state_dict": model.state_dict(),
+                        "step": step + 1,
+                        # A avaliação precisa saber se o modelo espera o token da nota.
+                        "conditioning": conditioning,
+                    },
                     args.checkpoint,
                 )
             else:
@@ -292,7 +335,9 @@ def _train(args: argparse.Namespace, run_id: str) -> None:
     args.samples.parent.mkdir(parents=True, exist_ok=True)
     with args.samples.open("w", encoding="utf-8") as f:
         for rating in range(1, 6):
-            prefix = [bos, special_id(tokenizer, rating_token(rating))]
+            prefix = [bos, special_id(tokenizer, rating_token(rating))][
+                : given_tokens(conditioning)
+            ]
             for _ in range(args.samples_per_rating):
                 ids = generate(model, prefix, eos, generator=generator)
                 text = decode(tokenizer, ids)

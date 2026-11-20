@@ -30,20 +30,42 @@ from nano_review.tokenization.bpe import PAD, encode_reviews, special_id
 IGNORE_INDEX = -100
 
 
+def given_tokens(conditioning: bool) -> int:
+    """Tokens do começo que são **dados**, e não previstos: ``<bos> <nota_k>`` ou só ``<bos>``."""
+    return 2 if conditioning else 1
+
+
+def drop_rating(ids: list[int]) -> list[int]:
+    """``<bos> <nota_k> texto <eos>`` -> ``<bos> texto <eos>``: a ablação sem a nota (E6)."""
+    return [ids[0], *ids[2:]]
+
+
+def fits_in_context(ids: list[int], block_size: int) -> bool:
+    """A resenha inteira, com ``<eos>``, cabe no modelo: a entrada é a sequência sem o último ID."""
+    return len(ids) - 1 <= block_size
+
+
 class ReviewDataset(Dataset[list[int]]):
     """Resenhas já codificadas em IDs, no formato ``<bos> <nota_k> ... <eos>``.
+
+    Com ``conditioning=False`` (o experimento E6), o token da nota sai e a sequência vira
+    ``<bos> ... <eos>``: o modelo aprende a escrever resenhas sem saber a nota pedida.
 
     Codifica tudo uma vez, na criação: tokenizar a cada época repetiria o mesmo trabalho.
     """
 
-    def __init__(self, df: pd.DataFrame, tokenizer: Tokenizer, block_size: int) -> None:
+    def __init__(
+        self, df: pd.DataFrame, tokenizer: Tokenizer, block_size: int, conditioning: bool = True
+    ) -> None:
         encoded = encode_reviews(
             tokenizer, df["review_text"].tolist(), df["overall_rating"].tolist()
         )
-        # A entrada do modelo é a sequência sem o último token, então cabe quem tem até
-        # block_size + 1 IDs. As mais longas saem inteiras, e não cortadas: cortada, a resenha
-        # perderia o <eos>, e o modelo aprenderia que resenha às vezes termina sem fim.
-        self.sequences = [ids for ids in encoded if len(ids) - 1 <= block_size]
+        if not conditioning:
+            encoded = [drop_rating(ids) for ids in encoded]
+        self.given = given_tokens(conditioning)
+        # As longas demais saem inteiras, e não cortadas: cortada, a resenha perderia o <eos>, e
+        # o modelo aprenderia que resenha às vezes termina sem fim.
+        self.sequences = [ids for ids in encoded if fits_in_context(ids, block_size)]
         self.n_dropped = len(encoded) - len(self.sequences)
 
     def __len__(self) -> int:
@@ -53,7 +75,9 @@ class ReviewDataset(Dataset[list[int]]):
         return self.sequences[index]
 
 
-def collate(batch: list[list[int]], pad_id: int) -> tuple[torch.Tensor, torch.Tensor]:
+def collate(
+    batch: list[list[int]], pad_id: int, given: int = 2
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Junta resenhas de tamanhos diferentes num lote ``(B, T)``.
 
     ``T`` é o tamanho da **maior resenha do lote**, e não o ``block_size``: com a mediana em ~26
@@ -65,6 +89,10 @@ def collate(batch: list[list[int]], pad_id: int) -> tuple[torch.Tensor, torch.Te
     - a primeira posição, em que o modelo leria ``<bos>`` e "preveria" ``<nota_k>``. A nota é
       **dada** pelo usuário, e não prevista. Assim a loss mede só o texto e o ``<eos>``, as mesmas
       posições que a perplexity do baseline de n-gramas mede.
+
+    ``given`` é o número de tokens dados no começo (2 com a nota, 1 sem ela). Sem a nota, a
+    primeira posição já prevê texto e precisa contar; ignorá-la tiraria a primeira palavra de toda
+    resenha do treino e da medida.
     """
     length = max(len(ids) for ids in batch) - 1
     x = torch.full((len(batch), length), pad_id, dtype=torch.long)
@@ -73,7 +101,7 @@ def collate(batch: list[list[int]], pad_id: int) -> tuple[torch.Tensor, torch.Te
         sequence = torch.tensor(ids, dtype=torch.long)
         x[row, : len(ids) - 1] = sequence[:-1]
         y[row, : len(ids) - 1] = sequence[1:]
-    y[:, 0] = IGNORE_INDEX
+    y[:, : given - 1] = IGNORE_INDEX
     return x, y
 
 
@@ -154,5 +182,5 @@ def make_loader(
     return DataLoader(
         dataset,
         batch_sampler=sampler,
-        collate_fn=partial(collate, pad_id=special_id(tokenizer, PAD)),
+        collate_fn=partial(collate, pad_id=special_id(tokenizer, PAD), given=dataset.given),
     )

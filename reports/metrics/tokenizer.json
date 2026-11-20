@@ -1,31 +1,31 @@
 {
-  "vocab_size": 4000,
+  "vocab_size": 8000,
   "train": {
-    "tokens_per_word": 1.503,
+    "tokens_per_word": 1.374,
     "unk_rate": 0.0,
     "sequence_length": {
-      "p50": 26.0,
-      "p90": 71.0,
-      "p95": 96.0,
-      "p99": 178.0,
+      "p50": 24.0,
+      "p90": 64.0,
+      "p95": 86.0,
+      "p99": 160.0,
       "max": 1537.0,
-      "fraction_over_64": 0.1201,
-      "fraction_over_128": 0.0244,
-      "fraction_over_256": 0.0033
+      "fraction_over_64": 0.0986,
+      "fraction_over_128": 0.0186,
+      "fraction_over_256": 0.0024
     }
   },
   "validation": {
-    "tokens_per_word": 1.496,
+    "tokens_per_word": 1.367,
     "unk_rate": 2e-06,
     "sequence_length": {
-      "p50": 26.0,
-      "p90": 73.0,
-      "p95": 99.0,
-      "p99": 178.84000000000015,
-      "max": 1014.0,
-      "fraction_over_64": 0.1261,
-      "fraction_over_128": 0.025,
-      "fraction_over_256": 0.0033
+      "p50": 25.0,
+      "p90": 66.0,
+      "p95": 89.0,
+      "p99": 160.84000000000015,
+      "max": 1006.0,
+      "fraction_over_64": 0.1056,
+      "fraction_over_128": 0.0189,
+      "fraction_over_256": 0.0025
     }
   }
 }

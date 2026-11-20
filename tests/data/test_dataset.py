@@ -12,6 +12,7 @@ from nano_review.data.dataset import (
     LengthBucketSampler,
     ReviewDataset,
     collate,
+    fits_in_context,
     make_loader,
 )
 from nano_review.tokenization.bpe import train_tokenizer
@@ -111,3 +112,34 @@ def test_bucket_sampler_changes_order_between_epochs_but_repeats_with_seed() -> 
     epoch_1 = list(first)
     assert epoch_1 == list(second)  # mesma semente, mesma primeira época
     assert list(first) != epoch_1  # a segunda época sorteia outra ordem
+
+
+def test_without_conditioning_the_rating_token_is_gone(tokenizer: Tokenizer) -> None:
+    # A ablação E6: o mesmo texto, sem o <nota_k>; nenhum token de nota sobra na sequência.
+    with_rating = ReviewDataset(_df(["Ok."], [3]), tokenizer, block_size=32)[0]
+    without = ReviewDataset(_df(["Ok."], [3]), tokenizer, block_size=32, conditioning=False)[0]
+    assert without == [with_rating[0], *with_rating[2:]]
+    rating_ids = {tokenizer.token_to_id(f"<nota_{r}>") for r in range(1, 6)}
+    assert not rating_ids & set(without)
+
+
+def test_without_conditioning_the_first_text_token_counts() -> None:
+    # Com a nota, a posição 0 "preveria" a nota e é ignorada. Sem ela, a posição 0 já prevê a
+    # primeira palavra: ignorá-la tiraria essa palavra do treino e da medida.
+    batch = [[BOS_ID, 10, 11, EOS_ID]]  # <bos> texto texto <eos>
+    _, y = collate(batch, pad_id=PAD_ID, given=1)
+    assert y.tolist() == [[10, 11, EOS_ID]]
+    _, y_rating = collate([[BOS_ID, 5, 10, EOS_ID]], pad_id=PAD_ID, given=2)
+    assert y_rating.tolist() == [[IGNORE_INDEX, 10, EOS_ID]]
+
+
+def test_loader_uses_the_dataset_prefix(tokenizer: Tokenizer) -> None:
+    dataset = ReviewDataset(_df(["Ok."], [3]), tokenizer, block_size=32, conditioning=False)
+    (_, y), *_ = list(make_loader(dataset, tokenizer, 1, False, 0))
+    assert int(y[0, 0]) != IGNORE_INDEX
+
+
+def test_fits_in_context_boundary() -> None:
+    # A entrada é a sequência sem o último ID: com block_size 4, cabem até 5 IDs.
+    assert fits_in_context([1, 8, 10, 11, 2], block_size=4)
+    assert not fits_in_context([1, 8, 10, 11, 12, 2], block_size=4)

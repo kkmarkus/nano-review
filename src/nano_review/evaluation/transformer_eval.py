@@ -36,10 +36,11 @@ from tokenizers import Tokenizer
 
 from nano_review.baseline.evaluate import RATINGS, score_texts
 from nano_review.baseline.ngram import BOS, EOS, rating_token, word_tokenize
+from nano_review.data.dataset import drop_rating, given_tokens
 from nano_review.models.transformer import TransformerConfig, TransformerLanguageModel, generate
 from nano_review.reproducibility import set_seed
 from nano_review.tokenization.bpe import PAD, decode, encode_reviews, special_id
-from nano_review.training.train import MLFLOW_EXPERIMENT
+from nano_review.training.train import configure_mlflow
 
 # Limiares do charter (seção 7), fixados antes do Transformer: (medida, "<=" ou ">=", limiar).
 # Repetidos aqui para o relatório dizer "passou" ou "não passou" sozinho; a fonte da verdade
@@ -66,10 +67,13 @@ class Window:
     targets: list[int]
 
 
-def sliding_windows(ids: Sequence[int], block_size: int, stride: int) -> list[Window]:
+def sliding_windows(
+    ids: Sequence[int], block_size: int, stride: int, given: int = 2
+) -> list[Window]:
     """Quebra uma sequência ``<bos> <nota_k> texto <eos>`` em janelas que cabem no modelo.
 
-    Os alvos são as posições 2 em diante (texto e ``<eos>``): a nota é dada, e não prevista. Cada
+    Os alvos são as posições ``given`` em diante (texto e ``<eos>``): o prefixo é dado, e não
+    previsto. ``given`` é 2 com a nota e 1 sem ela (``<bos> texto <eos>``, a ablação E6). Cada
     alvo é pontuado **uma vez só**, com o máximo de contexto que cabe.
 
     - Sequência curta (o caso de 97,5% das resenhas): uma janela só, igual ao treino.
@@ -79,22 +83,23 @@ def sliding_windows(ids: Sequence[int], block_size: int, stride: int) -> list[Wi
       metade de uma resenha longa seria prevista sem saber a nota.
 
     Para prever ``ids[j]``, a entrada precisa terminar em ``ids[j - 1]``. Com a entrada
-    ``prefixo + ids[start:end]``, o token ``ids[j - 1]`` fica na posição ``j + 1 - start``.
+    ``prefixo + ids[start:end]``, o token ``ids[j - 1]`` fica na posição ``given + j - 1 - start``.
     """
-    if not 1 <= stride <= block_size - 2:
-        raise ValueError("o stride precisa estar entre 1 e block_size - 2")
-    prefix = list(ids[:2])
+    if not 1 <= stride <= block_size - given:
+        raise ValueError("o stride precisa estar entre 1 e block_size - given")
+    prefix = list(ids[:given])
     windows = []
-    first, last = 2, len(ids)  # alvos: ids[2:]
+    first, last = given, len(ids)  # alvos: ids[given:]
     a = first
     while a < last:
         # A primeira janela pontua tudo o que cabe; as seguintes, ``stride`` alvos por vez.
         b = min(last, block_size + 1) if a == first else min(last, a + stride)
-        start = max(2, b + 1 - block_size)  # o máximo de contexto que cabe com o prefixo
+        # O máximo de contexto que cabe junto com o prefixo: given + (b - 1 - start) <= block_size.
+        start = max(given, b - 1 + given - block_size)
         windows.append(
             Window(
                 tokens=prefix + list(ids[start : b - 1]),
-                offset=a + 1 - start,
+                offset=given + a - 1 - start,
                 targets=list(ids[a:b]),
             )
         )
@@ -131,7 +136,11 @@ def total_log_prob(
 
 
 def word_perplexity(
-    model: TransformerLanguageModel, tokenizer: Tokenizer, df: pd.DataFrame, stride: int
+    model: TransformerLanguageModel,
+    tokenizer: Tokenizer,
+    df: pd.DataFrame,
+    stride: int,
+    conditioning: bool = True,
 ) -> dict[str, float]:
     """Perplexity por **palavra**, na unidade do trigrama (cautela 2 do charter).
 
@@ -139,12 +148,18 @@ def word_perplexity(
     (palavras e pontuação) mais um ``<eos>`` por resenha. log P(texto) é a soma dos log-probs dos
     tokens BPE: a probabilidade de um texto não depende de como ele foi quebrado, então dividir pelo
     número de palavras põe os dois modelos na mesma régua.
+
+    Sem a nota (``conditioning=False``), os alvos são os mesmos (texto e ``<eos>``); só o prefixo
+    muda. Assim a perplexity com e sem a nota mede exatamente o mesmo texto.
     """
     sequences = encode_reviews(tokenizer, df["review_text"].tolist(), df["overall_rating"].tolist())
+    if not conditioning:
+        sequences = [drop_rating(ids) for ids in sequences]
+    given = given_tokens(conditioning)
     block_size = model.config.block_size
-    windows = [w for ids in sequences for w in sliding_windows(ids, block_size, stride)]
+    windows = [w for ids in sequences for w in sliding_windows(ids, block_size, stride, given)]
     log_prob = total_log_prob(model, windows, special_id(tokenizer, PAD))
-    n_tokens = sum(len(ids) - 2 for ids in sequences)  # texto + <eos>
+    n_tokens = sum(len(ids) - given for ids in sequences)  # texto + <eos>
     n_words = sum(len(word_tokenize(text)) + 1 for text in df["review_text"])
     return {
         "word_perplexity": round(math.exp(-log_prob / n_words), 2),
@@ -156,19 +171,26 @@ def word_perplexity(
 
 
 def generate_samples(
-    model: TransformerLanguageModel, tokenizer: Tokenizer, per_rating: int, seed: int
+    model: TransformerLanguageModel,
+    tokenizer: Tokenizer,
+    per_rating: int,
+    seed: int,
+    conditioning: bool = True,
 ) -> list[tuple[int, str]]:
     """``per_rating`` resenhas por nota, sorteadas com temperatura 1 e sem top-k.
 
     Temperatura 1 é a distribuição que o modelo aprendeu, a mesma régua do trigrama. Baixar a
     temperatura deixaria o texto mais "seguro" e poderia inflar a coerência; isso é ajuste de
     produto (Etapa 4), e não medida do modelo.
+
+    Sem a nota, o modelo não a recebe, mas cada amostra continua registrada com a nota "pedida":
+    é isso que permite medir a coerência da ablação.
     """
     generator = torch.Generator().manual_seed(seed)
     bos, eos = special_id(tokenizer, BOS), special_id(tokenizer, EOS)
     samples = []
     for rating in RATINGS:
-        prefix = [bos, special_id(tokenizer, rating_token(rating))]
+        prefix = [bos, special_id(tokenizer, rating_token(rating))][: given_tokens(conditioning)]
         for _ in range(per_rating):
             ids = generate(model, prefix, eos, generator=generator)
             samples.append((rating, decode(tokenizer, ids)))
@@ -217,19 +239,23 @@ def flat_metrics(metrics: dict[str, object]) -> dict[str, float]:
 
 def log_to_mlflow(metrics: dict[str, object], run_id: str | None, artifacts: list[Path]) -> None:
     """Grava a avaliação no run do treino que gerou o checkpoint (ou num run novo, sem ele)."""
-    mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    configure_mlflow()
     with mlflow.start_run(run_id=run_id, run_name=None if run_id else "evaluate"):
         mlflow.log_metrics(flat_metrics(metrics))
         for path in artifacts:
             mlflow.log_artifact(str(path))
 
 
-def load_model(path: Path) -> TransformerLanguageModel:
-    """Recria o modelo a partir do checkpoint: a configuração viaja junto com os pesos."""
+def load_model(path: Path) -> tuple[TransformerLanguageModel, bool]:
+    """Recria o modelo a partir do checkpoint: a configuração viaja junto com os pesos.
+
+    Devolve também se o modelo foi treinado com o token da nota. Checkpoints anteriores ao E6 não
+    guardam isso, e todos eles usavam a nota.
+    """
     checkpoint = torch.load(path, weights_only=True)
     model = TransformerLanguageModel(TransformerConfig(**checkpoint["config"]))
     model.load_state_dict(checkpoint["state_dict"])
-    return model.eval()
+    return model.eval(), bool(checkpoint.get("conditioning", True))
 
 
 def main() -> None:
@@ -251,19 +277,20 @@ def main() -> None:
     args = parser.parse_args()
 
     set_seed(args.seed)
-    model = load_model(args.checkpoint)
+    model, conditioning = load_model(args.checkpoint)
     tokenizer = Tokenizer.from_file(str(args.tokenizer))
     judge = joblib.load(args.judge)
     train_texts = pd.read_parquet(args.train, columns=["review_text"])["review_text"].tolist()
     validation = pd.read_parquet(args.validation)
 
-    perplexity = word_perplexity(model, tokenizer, validation, args.stride)
-    samples = generate_samples(model, tokenizer, args.samples_per_rating, args.seed)
+    perplexity = word_perplexity(model, tokenizer, validation, args.stride, conditioning)
+    samples = generate_samples(model, tokenizer, args.samples_per_rating, args.seed, conditioning)
     scores = score_texts(
         [rating for rating, _ in samples], [text for _, text in samples], judge, train_texts
     )
     baseline = json.loads(args.baseline.read_text())
     metrics = {
+        "conditioning": conditioning,
         "validation": perplexity,
         "samples": scores,
         "hypotheses": check_hypotheses(perplexity["word_perplexity"], scores),

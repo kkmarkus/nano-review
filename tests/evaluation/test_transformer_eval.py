@@ -35,20 +35,22 @@ def test_short_sequence_is_one_window_like_training() -> None:
     assert window.targets == ids[2:]
 
 
+@pytest.mark.parametrize("given", [1, 2])
 @pytest.mark.parametrize("length", [9, 10, 17, 30])
 @pytest.mark.parametrize("stride", [1, 3, 6])
 def test_long_sequence_scores_every_target_once_with_the_right_context(
-    length: int, stride: int
+    length: int, stride: int, given: int
 ) -> None:
-    ids = [1, 4, *range(10, 10 + length - 3), 2]
-    windows = sliding_windows(ids, block_size=8, stride=stride)
+    # given = 2: <bos> <nota> texto <eos>; given = 1: <bos> texto <eos> (sem a nota, E6).
+    ids = [1, 4][:given] + list(range(10, 10 + length - 3)) + [2]
+    windows = sliding_windows(ids, block_size=8, stride=stride, given=given)
 
     # Todo alvo (texto e <eos>) é pontuado uma vez só, em ordem.
-    assert [t for w in windows for t in w.targets] == ids[2:]
-    j = 2  # índice, em ids, do próximo alvo
+    assert [t for w in windows for t in w.targets] == ids[given:]
+    j = given  # índice, em ids, do próximo alvo
     for window in windows:
         assert len(window.tokens) <= 8  # cabe no modelo
-        assert window.tokens[:2] == [1, 4]  # a nota continua à vista
+        assert window.tokens[:given] == ids[:given]  # o prefixo continua à vista
         for k, target in enumerate(window.targets):
             assert target == ids[j]
             # A posição que prevê ids[j] precisa estar lendo ids[j - 1].
@@ -137,3 +139,17 @@ def test_hypotheses_use_the_charter_thresholds() -> None:
         "H6": False,
         "H3": "pendente",
     }
+
+
+def test_with_and_without_rating_score_the_same_text() -> None:
+    # A ablação só compara se os dois modelos forem medidos nos mesmos alvos: mesma contagem de
+    # tokens e de palavras. Com logits uniformes, as duas perplexities saem iguais.
+    texts = ["Produto muito bom, recomendo.", "Não gostei, veio quebrado e atrasado."]
+    df = pd.DataFrame({"review_text": texts, "overall_rating": [5, 1]})
+    tokenizer = train_tokenizer(texts * 5, vocab_size=60)
+    config = TransformerConfig(
+        tokenizer.get_vocab_size(), block_size=6, d_model=8, n_layers=1, n_heads=2, dropout=0.0
+    )
+    with_rating = word_perplexity(_UniformModel(config), tokenizer, df, stride=2)
+    without = word_perplexity(_UniformModel(config), tokenizer, df, stride=2, conditioning=False)
+    assert without == with_rating

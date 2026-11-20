@@ -1,65 +1,66 @@
 {
+  "conditioning": true,
   "validation": {
-    "word_perplexity": 218.48,
-    "token_perplexity": 79.03,
-    "tokens_per_word": 1.2327,
+    "word_perplexity": 69.31,
+    "token_perplexity": 42.63,
+    "tokens_per_word": 1.1295,
     "reviews": 12617,
-    "reviews_over_block_size": 309
+    "reviews_over_block_size": 232
   },
   "samples": {
     "coherence": {
-      "macro": 0.6167,
+      "macro": 0.7208,
       "by_class": {
-        "negative": 0.6775,
-        "neutral": 0.4,
-        "positive": 0.7725
+        "negative": 0.795,
+        "neutral": 0.525,
+        "positive": 0.8425
       },
       "by_rating": {
-        "1": 0.76,
-        "2": 0.595,
-        "3": 0.4,
-        "4": 0.745,
-        "5": 0.8
+        "1": 0.91,
+        "2": 0.68,
+        "3": 0.525,
+        "4": 0.785,
+        "5": 0.9
       }
     },
-    "empty_rate": 0.002,
-    "distinct_1": 0.1953,
-    "distinct_2": 0.6816,
+    "empty_rate": 0.0,
+    "distinct_1": 0.1825,
+    "distinct_2": 0.6812,
     "copy": {
-      "exact": 0.003,
-      "ngram": 0.015,
-      "any": 0.018
+      "exact": 0.0,
+      "ngram": 0.031,
+      "any": 0.031
     },
-    "mean_words": 16.9
+    "mean_words": 19.4
   },
   "hypotheses": {
     "H1": {
       "measure": "perplexity por palavra",
-      "value": 218.48,
+      "value": 69.31,
       "threshold": "<= 72.0",
-      "passed": false
+      "passed": true
     },
     "H2": {
       "measure": "coerência macro",
-      "value": 0.6167,
+      "value": 0.7208,
       "threshold": ">= 0.57",
       "passed": true
     },
     "H4": {
       "measure": "cópia exata",
-      "value": 0.003,
+      "value": 0.0,
       "threshold": "<= 0.01",
       "passed": true
     },
     "H5": {
       "measure": "cópia de 8 palavras",
-      "value": 0.015,
+      "value": 0.031,
       "threshold": "<= 0.07",
       "passed": true
     },
     "H6": {
       "measure": "distinct-2",
-      "value": 0.6816,
+      "value": 0.6812,
       "threshold": ">= 0.59",
       "passed": true
     },

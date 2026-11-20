@@ -161,7 +161,7 @@ stages:
     cmd: python -m nano_review.tokenization.bpe --train 
       data/curated/train.parquet --validation data/curated/validation.parquet 
       --output models/tokenizer.json --metrics reports/metrics/tokenizer.json 
-      --vocab-size 4000
+      --vocab-size 8000
     deps:
     - path: data/curated/train.parquet
       hash: md5
@@ -181,26 +181,27 @@ stages:
       size: 6849
     params:
       params.yaml:
-        tokenizer.vocab_size: 4000
+        tokenizer.vocab_size: 8000
     outs:
     - path: models/tokenizer.json
       hash: md5
-      md5: 11d04e2652368580f529c747ecdf251f
-      size: 269956
+      md5: 1bae17c129ed78c70afc090554bcce3c
+      size: 558660
     - path: reports/metrics/tokenizer.json
       hash: md5
-      md5: fcd69a3ac75b896b74996998712e44e8
-      size: 646
+      md5: ee8d08dc15138eb3c20a3c9ea6caed69
+      size: 647
   train:
     cmd: python -m nano_review.training.train --train data/curated/train.parquet
       --validation data/curated/validation.parquet --tokenizer 
       models/tokenizer.json --checkpoint models/transformer.pt --metrics 
       reports/metrics/train.json --log reports/metrics/train_log.csv --figure 
       reports/figures/train_curve.png --samples 
-      reports/samples/transformer_first.jsonl --block-size 128 --d-model 128 
-      --n-layers 4 --n-heads 4 --dropout 0.1 --batch-size 32 --learning-rate 
-      0.0003 --weight-decay 0.1 --warmup-steps 200 --max-steps 6000 --eval-every
-      250 --eval-reviews 3000 --patience 8 --samples-per-rating 3 --seed 42
+      reports/samples/transformer_first.jsonl --block-size 128 --d-model 256 
+      --n-layers 4 --n-heads 4 --dropout 0.0 --batch-size 32 --learning-rate 
+      0.001 --weight-decay 0.1 --warmup-steps 200 --max-steps 15000 --eval-every
+      250 --eval-reviews 3000 --patience 8 --samples-per-rating 3 --seed 42 
+      --conditioning true
     deps:
     - path: data/curated/train.parquet
       hash: md5
@@ -212,16 +213,16 @@ stages:
       size: 1188736
     - path: models/tokenizer.json
       hash: md5
-      md5: 11d04e2652368580f529c747ecdf251f
-      size: 269956
+      md5: 1bae17c129ed78c70afc090554bcce3c
+      size: 558660
     - path: src/nano_review/baseline/ngram.py
       hash: md5
       md5: cddc0c7a75494277352399d4865d52a2
       size: 11791
     - path: src/nano_review/data/dataset.py
       hash: md5
-      md5: c366e9dbb594a2cfde061c593a0169dc
-      size: 6442
+      md5: 38fde6d32df97d10c491456276051e55
+      size: 7447
     - path: src/nano_review/models/loss.py
       hash: md5
       md5: f1075811bd6b6e5db5cb7c1f1d1bfb68
@@ -241,47 +242,48 @@ stages:
       size: 6849
     - path: src/nano_review/training/train.py
       hash: md5
-      md5: 18867fe18e216305b6cde936b03a6a7a
-      size: 14596
+      md5: e76891e9f51ff864a04d7877022674c2
+      size: 16427
     params:
       params.yaml:
         train:
           block_size: 128
-          d_model: 128
+          d_model: 256
           n_layers: 4
           n_heads: 4
-          dropout: 0.1
+          dropout: 0.0
           batch_size: 32
-          learning_rate: 0.0003
+          learning_rate: 0.001
           weight_decay: 0.1
           warmup_steps: 200
-          max_steps: 6000
+          max_steps: 15000
           eval_every: 250
           eval_reviews: 3000
           patience: 8
           samples_per_rating: 3
           seed: 42
+          conditioning: true
     outs:
     - path: models/transformer.pt
       hash: md5
-      md5: 2f580771fda03b7e004cf304cce9641e
-      size: 5306287
+      md5: 9181cbbd30af305a7a1015b5375e3ee7
+      size: 20980783
     - path: reports/figures/train_curve.png
       hash: md5
-      md5: 762c142eba5bee58cae167c350139b9f
-      size: 52259
+      md5: 7ba08319d51ace2a59dc0f83b7dc9556
+      size: 55877
     - path: reports/metrics/train.json
       hash: md5
-      md5: 7292143724ab61c10bf9b775e8046a33
-      size: 356
+      md5: e712cbadd5bd1687c90c4a591ee875fd
+      size: 361
     - path: reports/metrics/train_log.csv
       hash: md5
-      md5: 8c1110db7353ebd5b81f86c8ac69a236
-      size: 1065
+      md5: 7a2f45dfcf2cafb9d5471c8d377a0616
+      size: 2679
     - path: reports/samples/transformer_first.jsonl
       hash: md5
-      md5: 72bee1eb4ca2765fa93e83e528893fc9
-      size: 2230
+      md5: 172b6ed46a74674b0257d7f2df475085
+      size: 2411
   evaluate:
     cmd: python -m nano_review.evaluation.transformer_eval --checkpoint 
       models/transformer.pt --tokenizer models/tokenizer.json --judge 
@@ -306,20 +308,20 @@ stages:
       size: 8492324
     - path: models/tokenizer.json
       hash: md5
-      md5: 11d04e2652368580f529c747ecdf251f
-      size: 269956
+      md5: 1bae17c129ed78c70afc090554bcce3c
+      size: 558660
     - path: models/transformer.pt
       hash: md5
-      md5: 2f580771fda03b7e004cf304cce9641e
-      size: 5306287
+      md5: 9181cbbd30af305a7a1015b5375e3ee7
+      size: 20980783
     - path: reports/metrics/baseline.json
       hash: md5
       md5: 8124ca1323eb0b6b3ad2a63cbe3841f9
       size: 2883
     - path: reports/metrics/train.json
       hash: md5
-      md5: 7292143724ab61c10bf9b775e8046a33
-      size: 356
+      md5: e712cbadd5bd1687c90c4a591ee875fd
+      size: 361
     - path: src/nano_review/baseline/evaluate.py
       hash: md5
       md5: ab7012ae758c874d1d5c513df03a0fc0
@@ -342,8 +344,8 @@ stages:
       size: 5640
     - path: src/nano_review/evaluation/transformer_eval.py
       hash: md5
-      md5: e296d8578f4a806c86cbcdd30f0a22ed
-      size: 12884
+      md5: ad3e15e44ebe38bf18d821c5b214d9aa
+      size: 14017
     - path: src/nano_review/models/transformer.py
       hash: md5
       md5: a89a66243bbb9f9043619b767d16fb8d
@@ -359,8 +361,8 @@ stages:
       size: 6849
     - path: src/nano_review/training/train.py
       hash: md5
-      md5: 18867fe18e216305b6cde936b03a6a7a
-      size: 14596
+      md5: e76891e9f51ff864a04d7877022674c2
+      size: 16427
     params:
       params.yaml:
         evaluate:
@@ -370,9 +372,9 @@ stages:
     outs:
     - path: reports/metrics/transformer_eval.json
       hash: md5
-      md5: a60108f37c884b32ee673453d956ba08
-      size: 1592
+      md5: 7766e5295005ba46bb2379d1f8820b23
+      size: 1609
     - path: reports/samples/transformer_eval.jsonl
       hash: md5
-      md5: efd388e040f1f520521ace85b03004a9
-      size: 136785
+      md5: d901096b33f87bc4d8e15607e0b70e99
+      size: 151225

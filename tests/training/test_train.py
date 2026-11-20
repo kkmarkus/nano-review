@@ -24,7 +24,12 @@ from nano_review.models.transformer import (
 from nano_review.reproducibility import set_seed
 from nano_review.tokenization.bpe import train_tokenizer
 from nano_review.training import train
-from nano_review.training.train import evaluate, learning_rate_at, make_optimizer
+from nano_review.training.train import (
+    default_tracking_uri,
+    evaluate,
+    learning_rate_at,
+    make_optimizer,
+)
 
 TINY = TransformerConfig(
     vocab_size=30, block_size=12, d_model=16, n_layers=1, n_heads=2, dropout=0.0
@@ -103,7 +108,10 @@ PATHS = {
 
 
 def _run_training(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **overrides: float
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    overrides: dict[str, float] | None = None,
+    conditioning: str = "true",
 ) -> pd.DataFrame:
     """Um treino minúsculo pelo script de verdade, com os mesmos argumentos que o DVC passa."""
     df = pd.DataFrame({"review_text": TEXTS * 40, "overall_rating": [5, 1, 4] * 40})
@@ -126,9 +134,9 @@ def _run_training(
         "dropout": 0.0,
         "learning-rate": 0.01,
         "weight-decay": 0.1,
-        **overrides,
+        **(overrides or {}),
     }
-    argv = ["train"]
+    argv = ["train", "--conditioning", conditioning]
     for key, value in PATHS.items():
         argv += [f"--{key}", str(tmp_path / value)]
     for key, number in numbers.items():
@@ -179,7 +187,7 @@ def test_early_stopping_stops_when_validation_stalls(
     _run_training(
         tmp_path,
         monkeypatch,
-        **{"learning-rate": 0.0, "patience": 2, "eval-every": 10, "max-steps": 100},
+        {"learning-rate": 0.0, "patience": 2, "eval-every": 10, "max-steps": 100},
     )
     metrics = json.loads((tmp_path / "metrics.json").read_text())
     assert metrics["stopped_early"] and metrics["steps"] == 30
@@ -223,3 +231,23 @@ def test_evaluation_is_logged_into_the_training_run(
     assert "validation.word_perplexity" in metrics
     assert metrics["hypotheses.H4.passed"] in (0.0, 1.0)
     assert "final_val_loss" in metrics  # o que o treino gravou continua lá
+
+
+def test_mlflow_runs_go_to_the_project_root_inside_dvc() -> None:
+    # Num `dvc exp run --temp`, a pasta atual é uma cópia temporária; o banco precisa ficar na raiz
+    # do projeto original, que o DVC informa em DVC_ROOT.
+    assert default_tracking_uri({"DVC_ROOT": "/projeto"}) == "sqlite:////projeto/mlflow.db"
+    # Quem define MLFLOW_TRACKING_URI explicitamente (os testes, por exemplo) manda.
+    assert default_tracking_uri({"DVC_ROOT": "/projeto", "MLFLOW_TRACKING_URI": "x"}) is None
+    assert default_tracking_uri({}) is None  # fora do DVC: o padrão do MLflow
+
+
+def test_training_without_conditioning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, isolated_mlflow: str
+) -> None:
+    # A ablação E6 de ponta a ponta: o checkpoint registra que o modelo não usa a nota, e a
+    # avaliação lê isso dele.
+    _run_training(tmp_path, monkeypatch, conditioning="false")
+    model, conditioning = transformer_eval.load_model(tmp_path / "model.pt")
+    assert conditioning is False
+    assert model.config.block_size == 32
