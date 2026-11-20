@@ -25,6 +25,17 @@ produto em português a partir de uma nota de 1 a 5. Projeto integrador individu
   - rubrica humana às cegas, o H3 (`docs/rubric.md`), e análise de erros
     (`docs/error_analysis.md`).
 
+## Licenças
+
+| O quê | Licença |
+|---|---|
+| Código (`src/`, `tests/`, notebooks, `Dockerfile`, `Makefile`, docs) | MIT (`LICENSE`) |
+| Dados, modelos treinados, resenhas geradas e planilhas da rubrica | CC BY-NC-SA 4.0, a mesma do dataset (`LICENSE-DATA.md`) |
+
+O código pode ser reaproveitado livremente. O que vem dos dados não pode ter uso comercial e
+precisa citar o B2W-Reviews01 (B2W Digital; Real, Oshiro e Mafra, STIL 2019). As resenhas geradas
+servem para testar software e não podem ser publicadas como avaliação real.
+
 ## Como preparar o ambiente (WSL/Ubuntu, Python 3.12)
 
 Mantenha o projeto dentro do sistema de arquivos do WSL (por exemplo `~/workspace/nano-review`),
@@ -267,6 +278,31 @@ curl -X POST http://127.0.0.1:8000/generate \
   seção 9).
 - **Os caminhos do modelo** vêm das variáveis de ambiente `NANO_REVIEW_CHECKPOINT` e
   `NANO_REVIEW_TOKENIZER`, com o padrão `models/transformer.pt` e `models/tokenizer.json`.
+
+## Obter o modelo sem DVC (Etapa 4.6)
+
+O remote do DVC é uma pasta local. Para quem clona o repositório, o checkpoint final e o
+tokenizador estão no Release
+[`v0.1.0`](https://github.com/kkmarkus/nano-review/releases/tag/v0.1.0) (CC BY-NC-SA 4.0). São os
+dois arquivos que a API e o Docker precisam:
+
+```bash
+mkdir -p models
+curl -L -o models/transformer.pt https://github.com/kkmarkus/nano-review/releases/download/v0.1.0/transformer.pt
+curl -L -o models/tokenizer.json https://github.com/kkmarkus/nano-review/releases/download/v0.1.0/tokenizer.json
+```
+
+A conferência abaixo garante que os arquivos são exatamente os do teste final (o hash MD5 do
+checkpoint, `9181cbbd…`, é o mesmo do `dvc.lock` e do `/health`):
+
+```bash
+sha256sum -c - <<'EOF'
+e2811f0085bd8989b0e387461995db5cc977e77de2b30da70ac1e2e129b573a2  models/transformer.pt
+1db61a9cf49b564d2397d623bc9144162793aacc023c1684268e5ed6602cb973  models/tokenizer.json
+EOF
+```
+
+Com os dois arquivos em `models/`, o `make docker-build` (abaixo) funciona sem DVC.
 
 ## Docker (Etapa 4.5)
 
