@@ -1,0 +1,147 @@
+{
+  "by_source": {
+    "real": {
+      "all": {
+        "samples": 100,
+        "median_words": 17.0,
+        "with_invented_word": 0.15,
+        "invented_per_100_words": 0.79,
+        "median_first_invented": 0.471,
+        "median_first_invented_word": 7.0
+      },
+      "ok": {
+        "samples": 97,
+        "median_words": 17.0,
+        "with_invented_word": 0.144,
+        "invented_per_100_words": 0.76,
+        "median_first_invented": 0.435,
+        "median_first_invented_word": 8.0
+      },
+      "bad": {
+        "samples": 3,
+        "median_words": 14.0,
+        "with_invented_word": 0.333,
+        "invented_per_100_words": 1.92,
+        "median_first_invented": 0.667,
+        "median_first_invented_word": 7.0
+      }
+    },
+    "transformer": {
+      "all": {
+        "samples": 100,
+        "median_words": 14.5,
+        "with_invented_word": 0.39,
+        "invented_per_100_words": 4.18,
+        "median_first_invented": 0.4,
+        "median_first_invented_word": 9.0
+      },
+      "ok": {
+        "samples": 63,
+        "median_words": 12.0,
+        "with_invented_word": 0.159,
+        "invented_per_100_words": 1.51,
+        "median_first_invented": 0.453,
+        "median_first_invented_word": 9.0
+      },
+      "bad": {
+        "samples": 37,
+        "median_words": 22.0,
+        "with_invented_word": 0.784,
+        "invented_per_100_words": 5.99,
+        "median_first_invented": 0.318,
+        "median_first_invented_word": 9.0
+      }
+    },
+    "trigram": {
+      "all": {
+        "samples": 100,
+        "median_words": 18.5,
+        "with_invented_word": 0.0,
+        "invented_per_100_words": 0.0,
+        "median_first_invented": null,
+        "median_first_invented_word": null
+      },
+      "ok": {
+        "samples": 15,
+        "median_words": 7.0,
+        "with_invented_word": 0.0,
+        "invented_per_100_words": 0.0,
+        "median_first_invented": null,
+        "median_first_invented_word": null
+      },
+      "bad": {
+        "samples": 85,
+        "median_words": 20.0,
+        "with_invented_word": 0.0,
+        "invented_per_100_words": 0.0,
+        "median_first_invented": null,
+        "median_first_invented_word": null
+      }
+    }
+  },
+  "transformer_by_rating": {
+    "1": {
+      "train_share": 0.194,
+      "bad_fraction": 0.35
+    },
+    "2": {
+      "train_share": 0.062,
+      "bad_fraction": 0.65
+    },
+    "3": {
+      "train_share": 0.123,
+      "bad_fraction": 0.45
+    },
+    "4": {
+      "train_share": 0.25,
+      "bad_fraction": 0.15
+    },
+    "5": {
+      "train_share": 0.37,
+      "bad_fraction": 0.25
+    }
+  },
+  "error_types": {
+    "drift": {
+      "samples": 13,
+      "by_rating": {
+        "1": 1,
+        "2": 5,
+        "3": 2,
+        "4": 3,
+        "5": 2
+      }
+    },
+    "garbled": {
+      "samples": 12,
+      "by_rating": {
+        "1": 4,
+        "2": 3,
+        "3": 3,
+        "5": 2
+      }
+    },
+    "mixed_topics": {
+      "samples": 8,
+      "by_rating": {
+        "1": 2,
+        "2": 3,
+        "3": 2,
+        "5": 1
+      }
+    },
+    "wrong_tone": {
+      "samples": 3,
+      "by_rating": {
+        "2": 2,
+        "3": 1
+      }
+    },
+    "loop": {
+      "samples": 1,
+      "by_rating": {
+        "3": 1
+      }
+    }
+  }
+}

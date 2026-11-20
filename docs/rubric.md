@@ -2,7 +2,8 @@
 
 > Versão 1.0, escrita em 17/11/2026, **antes de qualquer amostra gerada existir** (nem do baseline,
 > nem do Transformer). É por isso que ela vale como medida: se fosse escrita depois de ler as
-> amostras, poderia ser ajustada, sem querer, para favorecer um dos modelos.
+> amostras, poderia ser ajustada, sem querer, para favorecer um dos modelos. A versão 1.1
+> (20/11/2026), mais abaixo, esclarece três fronteiras e vale só para as avaliações seguintes.
 
 ## Para que serve
 
@@ -96,10 +97,41 @@ Além das notas, registre, quando aparecer:
 3. Os modelos comparados entre si são sempre avaliados **com a mesma versão** da rubrica, na mesma
    planilha cega.
 
+## Versão 1.1 (20/11/2026)
+
+Escrita **depois** de pontuar o lote v1 e de abrir a chave dele. Por isso ela **não** vale para o
+lote v1: as notas dele ficam como foram dadas (regra 2 acima). Ela vale para as avaliações seguintes,
+por exemplo a do teste, na Etapa 4.
+
+Os critérios e as notas de 1 a 3 não mudam. A v1.1 só esclarece três fronteiras que, na v1, davam
+margem a mais de uma leitura. Diferente da v1.0, os exemplos abaixo não são inventados: foram
+adaptados de casos do lote v1.
+
+1. **Fluência, 1 ou 2.** O teste é: "consigo dizer, numa frase, o que a pessoa quis dizer?". Se sim, a
+   nota é 2, mesmo com trechos sem sentido. Se não, é 1.
+2. **Coerência na nota 3.** Na nota 3, um texto só positivo **ou** só negativo vale 2: ele não
+   contradiz a nota, só fica na nota vizinha. A coerência 1 é para as notas 1, 2, 4 e 5, quando o tom
+   é o oposto do pedido. Elogio com ressalva ("é bom, mas...") continua valendo 3.
+3. **Plausibilidade de textos curtos.** Uma reclamação ou um elogio curto, do tipo que um cliente
+   escreveria, vale 3, mesmo com erro de digitação ("Não mostra o tamanho do produto."). Um desabafo
+   que não avalia nada vale 2 ("Nem chegou."). Um fragmento sem relação com compra vale 1 ("No dia 5.").
+
 ## Limitações
 
 - **Um avaliador só** (o autor do projeto), que conhece os modelos. A avaliação às cegas e os
   exemplos fixos reduzem esse viés, mas não o eliminam. Se houver tempo na Etapa 5, uma segunda
   pessoa pontua 20 amostras, e a concordância entre as duas é reportada.
+- No lote v1, as três fronteiras esclarecidas na versão 1.1 foram aplicadas com mais rigor do que a
+  v1.1 pede:
+  - mais textos receberam fluência 1;
+  - reclamações na nota 3 receberam coerência 1;
+  - textos curtos e verossímeis receberam plausibilidade 1.
+
+  Isso aumenta a fração de amostras ruins. A parte da coerência na nota 3 dá para contar: pela v1.1,
+  deixariam de ser ruins 2 resenhas reais (3% → 1%), 1 amostra do Transformer (37% → 36%) e nenhuma
+  do trigrama. As outras duas partes exigiriam repontuar e não foram medidas. Elas provavelmente
+  pesam mais no Transformer, cujos erros ficam mais perto da fronteira entre fluência 1 e 2 do que a
+  salada do trigrama. Ou seja, o rigor joga contra o Transformer: a comparação do H3 fica
+  conservadora, e os números absolutos estão inflados.
 - 20 amostras por nota são poucas para diferenças pequenas. A rubrica serve para achar problemas
   que os números não mostram, e não para decidir sozinha qual modelo é melhor.
