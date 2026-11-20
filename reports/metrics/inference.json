@@ -1,0 +1,122 @@
+{
+  "settings": {
+    "temperature": 1.0,
+    "top_k": null,
+    "max_text_tokens": 83,
+    "max_attempts": 5,
+    "max_reviews": 20,
+    "max_temperature": 2.0
+  },
+  "results": [
+    {
+      "label": "t1.0-k0",
+      "temperature": 1.0,
+      "top_k": null,
+      "coherence": {
+        "macro": 0.7275,
+        "by_class": {
+          "negative": 0.7975,
+          "neutral": 0.53,
+          "positive": 0.855
+        },
+        "by_rating": {
+          "1": 0.915,
+          "2": 0.68,
+          "3": 0.53,
+          "4": 0.78,
+          "5": 0.93
+        }
+      },
+      "empty_rate": 0.0,
+      "distinct_1": 0.1873,
+      "distinct_2": 0.6843,
+      "copy": {
+        "exact": 0.0,
+        "ngram": 0.029,
+        "any": 0.029
+      },
+      "mean_words": 17.6,
+      "invented_per_100_words": 3.807,
+      "passed": {
+        "H2": true,
+        "H4": true,
+        "H5": true,
+        "H6": true
+      },
+      "passes_all": true,
+      "delivered": 1000,
+      "failures": 0,
+      "attempts": {
+        "mean": 1.03,
+        "max": 2,
+        "more_than_one": 0.03
+      },
+      "rejected": {
+        "too_long": 29,
+        "empty": 0,
+        "repetition": 1,
+        "personal_data": 0
+      },
+      "ms_per_review": {
+        "mean": 185.9,
+        "median": 124.5,
+        "p95": 553.8
+      }
+    },
+    {
+      "label": "t1.0-k50",
+      "temperature": 1.0,
+      "top_k": 50,
+      "coherence": {
+        "macro": 0.7658,
+        "by_class": {
+          "negative": 0.7975,
+          "neutral": 0.63,
+          "positive": 0.87
+        },
+        "by_rating": {
+          "1": 0.945,
+          "2": 0.65,
+          "3": 0.63,
+          "4": 0.795,
+          "5": 0.945
+        }
+      },
+      "empty_rate": 0.0,
+      "distinct_1": 0.1079,
+      "distinct_2": 0.5075,
+      "copy": {
+        "exact": 0.007,
+        "ngram": 0.05,
+        "any": 0.053
+      },
+      "mean_words": 16.2,
+      "invented_per_100_words": 0.6,
+      "passed": {
+        "H2": true,
+        "H4": true,
+        "H5": true,
+        "H6": false
+      },
+      "passes_all": false,
+      "delivered": 1000,
+      "failures": 0,
+      "attempts": {
+        "mean": 1.006,
+        "max": 2,
+        "more_than_one": 0.006
+      },
+      "rejected": {
+        "too_long": 6,
+        "empty": 0,
+        "repetition": 0,
+        "personal_data": 0
+      },
+      "ms_per_review": {
+        "mean": 152.0,
+        "median": 110.5,
+        "p95": 394.5
+      }
+    }
+  ]
+}

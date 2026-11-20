@@ -66,3 +66,20 @@ evaluate:
   # `stride` tokens, vendo pelo menos block_size - 2 - stride tokens de contexto antes deles.
   stride: 64
   seed: 42
+
+decoding:
+  # Etapa 4.1: combinações varridas para escolher a decodificação. A regra de escolha está em
+  # docs/inference.md e foi escrita antes de rodar. As chaves usam hífen porque o DVC transforma
+  # a seção inteira nos argumentos do script (--temperatures 1.0 0.9 ... --top-ks 0 50 20 ...).
+  temperatures: [1.0, 0.9, 0.8, 0.7]
+  # 0 quer dizer "sem top-k".
+  top-ks: [0, 50, 20]
+  samples-per-rating: 200
+  seed: 42
+
+inference_check:
+  # Etapa 4.2: mede o pipeline completo do produto (decodificação + filtros) com a temperatura
+  # padrão e cada top-k abaixo. Chaves com hífen pelo mesmo motivo da seção decoding.
+  top-ks: [0, 50]
+  samples-per-rating: 200
+  seed: 42

@@ -231,6 +231,82 @@ stages:
       - reports/metrics/transformer_eval.json:
           cache: false
 
+  decoding:
+    # Etapa 4.1: escolhe temperatura e top-k pela regra de docs/inference.md. Não lê validação
+    # nem teste: as amostras são geradas, e a cópia e o vocabulário vêm do treino.
+    cmd: >-
+      python -m nano_review.evaluation.decoding
+      --checkpoint models/transformer.pt
+      --tokenizer models/tokenizer.json
+      --judge models/judge.joblib
+      --train data/curated/train.parquet
+      --metrics reports/metrics/decoding.json
+      --samples reports/samples/decoding.jsonl
+      ${decoding}
+    deps:
+      - src/nano_review/evaluation/decoding.py
+      - src/nano_review/evaluation/error_analysis.py
+      - src/nano_review/evaluation/transformer_eval.py
+      - src/nano_review/evaluation/metrics.py
+      - src/nano_review/inference/sampling.py
+      - src/nano_review/baseline/evaluate.py
+      - src/nano_review/baseline/judge.py
+      - src/nano_review/baseline/ngram.py
+      - src/nano_review/data/clean.py
+      - src/nano_review/models/transformer.py
+      - src/nano_review/tokenization/bpe.py
+      - models/transformer.pt
+      - models/tokenizer.json
+      - models/judge.joblib
+      - data/curated/train.parquet
+    params:
+      - decoding
+    outs:
+      - reports/samples/decoding.jsonl:
+          cache: false
+    metrics:
+      - reports/metrics/decoding.json:
+          cache: false
+
+  inference_check:
+    # Etapa 4.2: o que a API entrega, com a decodificação padrão e os filtros do gerador. As
+    # resenhas viram o conjunto do lote humano v2. Não lê validação nem teste.
+    cmd: >-
+      python -m nano_review.evaluation.inference_check
+      --checkpoint models/transformer.pt
+      --tokenizer models/tokenizer.json
+      --judge models/judge.joblib
+      --train data/curated/train.parquet
+      --metrics reports/metrics/inference.json
+      --samples reports/samples/inference.jsonl
+      ${inference_check}
+    deps:
+      - src/nano_review/evaluation/inference_check.py
+      - src/nano_review/evaluation/decoding.py
+      - src/nano_review/evaluation/error_analysis.py
+      - src/nano_review/evaluation/transformer_eval.py
+      - src/nano_review/evaluation/metrics.py
+      - src/nano_review/inference/generator.py
+      - src/nano_review/inference/sampling.py
+      - src/nano_review/baseline/evaluate.py
+      - src/nano_review/baseline/judge.py
+      - src/nano_review/baseline/ngram.py
+      - src/nano_review/data/clean.py
+      - src/nano_review/models/transformer.py
+      - src/nano_review/tokenization/bpe.py
+      - models/transformer.pt
+      - models/tokenizer.json
+      - models/judge.joblib
+      - data/curated/train.parquet
+    params:
+      - inference_check
+    outs:
+      - reports/samples/inference.jsonl:
+          cache: false
+    metrics:
+      - reports/metrics/inference.json:
+          cache: false
+
 # `dvc plots show` desenha a curva de treino e validação direto do CSV do estágio train.
 plots:
   - curva_de_treino:
