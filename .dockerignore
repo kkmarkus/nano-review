@@ -1,0 +1,14 @@
+# Lista do que PODE entrar na imagem, e não do que fica de fora: tudo é ignorado, e só os arquivos
+# abaixo voltam. Assim, nada de data/, .git, .venv, MLflow, relatórios ou material de apoio entra
+# por esquecimento.
+*
+!requirements-api.txt
+!pyproject.toml
+!src/
+!models/transformer.pt
+!models/tokenizer.json
+# Lixo de execução local dentro de src/.
+**/__pycache__
+**/*.egg-info
+# Estado de ferramentas do editor/assistente, que pode aparecer em qualquer pasta.
+**/.omc

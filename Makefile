@@ -1,4 +1,4 @@
-.PHONY: check lint typecheck test format
+.PHONY: check lint typecheck test format docker-build docker-run
 
 # O Python do .venv, para o make funcionar mesmo sem o ambiente ativado no terminal.
 PYTHON ?= .venv/bin/python
@@ -19,3 +19,15 @@ test:
 format:
 	$(PYTHON) -m ruff format .
 	$(PYTHON) -m ruff check --fix .
+
+# Imagem Docker da API (Etapa 4.5). O modelo precisa estar em models/ (dvc pull) antes do build.
+IMAGE ?= nano-review:0.1
+# Porta desta máquina onde a API aparece. Se a 8000 estiver ocupada: make docker-run PORT=8001
+PORT ?= 8000
+
+docker-build:
+	docker build -t $(IMAGE) .
+
+# A porta é publicada só em 127.0.0.1: a API não tem autenticação, então fica visível só nesta máquina.
+docker-run:
+	docker run --rm --name nano-review -p 127.0.0.1:$(PORT):8000 $(IMAGE)

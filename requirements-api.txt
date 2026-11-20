@@ -1,0 +1,58 @@
+# Tudo o que a imagem Docker da API instala, nas versões exatas do .venv em que o projeto foi
+# testado (Etapa 4.5). O requirements.txt continua sendo o do projeto inteiro (treino, MLflow,
+# avaliação); a imagem não precisa de nada disso para servir o modelo. O torch CPU é instalado à
+# parte, no Dockerfile, pelo índice próprio da PyTorch.
+#
+# Versões fixas, inclusive as das dependências indiretas: sem elas, o pip escolhe a mais nova de
+# cada uma no dia do build, e a imagem deixa de sair igual em qualquer máquina. A revisão
+# independente achou exatamente isso (por exemplo, o pydantic, que faz a validação da API, e o
+# python-dateutil, com uma versão principal inteira à frente da do .venv).
+
+# Diretas: o que a API importa.
+numpy==2.5.5
+pandas==3.1.1
+tokenizers==0.23.3
+fastapi==0.165.0
+uvicorn==0.54.0
+# O gerador usa words() de evaluation/metrics.py, e esse módulo importa o juiz de sentimento
+# (baseline/judge.py), que precisa do joblib e do scikit-learn. A API não usa o juiz, mas o import
+# vem junto. O scipy e o threadpoolctl são dependências do scikit-learn.
+joblib==1.6.0
+scikit-learn==1.9.1
+scipy==1.18.1
+threadpoolctl==3.8.0
+
+# Indiretas: o que as de cima puxam (e o que o torch puxa), também fixadas.
+annotated-doc==0.0.7
+annotated-types==0.8.0
+anyio==4.16.0
+click==8.5.1
+cloudpickle==3.1.2
+filelock==4.2.4
+fsspec==2026.9.0
+h11==0.16.0
+hf-xet==1.8.0
+httpcore2==2.16.2
+httpx2==2.16.2
+huggingface_hub==2.4.0
+idna==3.20
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+mpmath==1.3.0
+narwhals==2.28.0
+networkx==3.7
+opentelemetry-api==1.45.2
+packaging==26.3
+pydantic==2.14.3
+pydantic_core==2.50.4
+python-dateutil==2.9.0.post0
+PyYAML==6.0.3
+setuptools==78.1.0
+six==1.17.0
+starlette==1.10.0
+sympy==1.14.0
+tqdm==4.70.1
+truststore==0.10.5
+typing-inspection==0.4.5
+typing_extensions==4.16.0
+tzdata==2026.6

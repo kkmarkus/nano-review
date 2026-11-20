@@ -195,8 +195,8 @@ as 2.000 resenhas entregues em `reports/samples/inference.jsonl` e um run por co
   As resenhas reais do treino têm mediana de 21 tokens, e as geradas, de 18.
 - **O tempo** foi medido com 16 núcleos, uma resenha por vez, e varia um pouco entre rodadas (na
   primeira, a mediana foi de 127 ms). Um pedido de 20 resenhas leva perto de 20 vezes a **média**, e
-  não a mediana, porque a soma é puxada pelos textos longos: uns 3,7 segundos. Dentro do Docker, com
-  menos núcleos, deve ser mais lento, e será medido na 4.5.
+  não a mediana, porque a soma é puxada pelos textos longos: uns 3,7 segundos. Dentro do Docker, o
+  tempo ficou parecido (seção 4.5), porque o Docker Desktop dá ao contêiner os mesmos 16 núcleos.
 - **Reprodutibilidade:** depois das correções da revisão independente (validação mais rigorosa,
   tempo médio, URL em minúsculas), o estágio foi rodado de novo, e as 2.000 resenhas saíram
   idênticas às da primeira rodada. Os 2 runs antigos do MLflow foram marcados como apagados, para
@@ -261,3 +261,60 @@ no README. As decisões de desenho:
 **Teste de fumaça com o modelo real (20/11/2026):** o `/health` respondeu com 5.240.320 parâmetros e o
 hash do checkpoint igual ao registrado no DVC. O `/generate` devolveu 5 resenhas em 1,4 s, todas na
 primeira tentativa. Um pedido inválido deu 422, e a página e o `/docs` responderam 200.
+
+## 4.5 Docker
+
+O `Dockerfile` empacota a API, a página e o modelo final numa imagem que roda sozinha. Os comandos
+estão no README. As decisões:
+
+- **Só o que a API importa**, no `requirements-api.txt`, nas versões exatas do `.venv`; o torch CPU
+  na mesma versão (2.15.0), pelo índice da PyTorch. A imagem base também tem versão exata
+  (`python:3.12.16-slim-trixie`). O MLflow, o pyarrow e as ferramentas de
+  desenvolvimento ficam de fora.
+  - **Um erro de planejamento, pego pela verificação:** a primeira imagem não subia, porque faltava o
+    joblib. O gerador importa `words()` de `evaluation/metrics.py`, e esse módulo importa o juiz de
+    sentimento (`baseline/judge.py`), que precisa do joblib e do scikit-learn. A busca pelos imports
+    tinha olhado só os diretos.
+  - Havia duas saídas: cortar essa cadeia no gerador (o que mudaria um arquivo de dois estágios do
+    DVC) ou instalar as bibliotecas. A escolhida foi instalar, com ~190 MB a mais no disco da imagem
+    (medido dentro dela) e nenhum código mudado.
+  - **Um segundo erro, pego pela revisão independente:** no começo, só as dependências diretas
+    estavam fixadas. O pip escolhia a versão mais nova das indiretas, e a imagem já tinha saído
+    diferente do `.venv` em cinco pacotes, entre eles o pydantic, que faz a validação da API, e o
+    python-dateutil, com uma versão principal inteira à frente. Agora o `requirements-api.txt` fixa
+    tudo o que a imagem instala.
+- **O modelo vai dentro da imagem.** A demonstração não depende de montar a pasta certa, e a página
+  e a API funcionam offline. O `/docs` não, porque o FastAPI carrega o estilo e o script dele de uma
+  CDN.
+- **As camadas vão do que muda menos para o que muda mais:** torch, bibliotecas, modelo, código. Um
+  ajuste no código reconstrói a imagem em segundos, sem baixar o torch de novo.
+- **Instalação normal do pacote, e não editável, com o código-fonte apagado em seguida.** A API roda
+  do pacote instalado, o que prova que a página (HTML, CSS e JS) entrou nele.
+- **Usuário sem privilégios** (`app`) e **porta publicada só em `127.0.0.1`** pelo `make docker-run`.
+  Dentro do contêiner, a API escuta em `0.0.0.0`, senão ninguém de fora do contêiner a alcançaria.
+- **`HEALTHCHECK`** pelo `/health`, a cada 30 s, com 30 s de tolerância na subida. Antes de o modelo
+  carregar, a conexão falha, e isso também conta como "fora do ar".
+
+**Verificação (20/11/2026), com o contêiner rodando:**
+
+| Conferência | Resultado |
+|---|---|
+| Subida da API | ~5 s, com o hash do checkpoint igual ao do DVC |
+| `GET /`, `/static/style.css`, `/static/app.js`, `/health`, `/docs` | todos 200, com o tipo certo |
+| `NaN` no pedido | 422 |
+| `HEALTHCHECK` | `healthy` |
+| Usuário do processo | `app` |
+| **Mesma semente, no contêiner e no `.venv`** | **5 de 5 pedidos (15 resenhas) idênticos** |
+| Tempo por resenha (10 pedidos de 5) | média 189 ms, mediana 145 ms; no `.venv`, a média foi de 172 a 186 ms |
+| Memória do contêiner em uso | ~320 MB |
+| `make docker-run` | sobe na porta 8000, e o `/health` responde 200 |
+
+A semente reproduziu o texto porque o contêiner usa a mesma versão do torch e o mesmo número de
+threads (8) do `.venv`. O número de threads bate porque o Docker Desktop dá ao contêiner os 16
+núcleos da máquina, os mesmos que o `.venv` vê. Com outra versão ou outro número de núcleos, o resultado pode mudar, como
+avisa a seção 4.2.
+
+**Uma armadilha do teste:** o Docker Desktop aceita a conexão na porta publicada antes de a API estar
+pronta e a derruba em seguida ("connection reset"). Um `curl --retry-connrefused` desiste nesse caso,
+porque a conexão não foi recusada. Para esperar a subida, é preciso repetir o `/health` até ele
+responder.

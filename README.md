@@ -57,6 +57,8 @@ nano-review/
 │   ├── training/           # laço de treino, checkpoint e export do MLflow
 │   ├── baseline/           # juiz de sentimento e geradores de n-gramas
 │   ├── evaluation/         # métricas, avaliação, rubrica e análise de erros
+│   ├── inference/          # sorteio (temperatura, top-k) e gerador com filtros
+│   ├── api/                # API FastAPI e a página de demonstração
 │   └── reproducibility.py  # set_seed: mesma semente, mesmo resultado
 ├── tests/                  # testes automatizados (make check)
 ├── notebooks/              # EDA, tokenização, forward/backward e atenção
@@ -78,7 +80,10 @@ nano-review/
 ├── dvc.lock                # hashes da última execução de cada estágio
 ├── requirements.txt        # dependências do projeto
 ├── requirements-dev.txt    # ferramentas: ruff, mypy, pytest
-└── Makefile                # make check
+├── requirements-api.txt    # só o que a API importa, para o Docker
+├── Dockerfile              # imagem da API com o modelo final
+├── .dockerignore           # o que pode entrar na imagem
+└── Makefile                # make check, docker-build, docker-run
 ```
 
 ## Dados e modelos (DVC)
@@ -262,3 +267,45 @@ curl -X POST http://127.0.0.1:8000/generate \
   seção 9).
 - **Os caminhos do modelo** vêm das variáveis de ambiente `NANO_REVIEW_CHECKPOINT` e
   `NANO_REVIEW_TOKENIZER`, com o padrão `models/transformer.pt` e `models/tokenizer.json`.
+
+## Docker (Etapa 4.5)
+
+A imagem traz a API, a página e o modelo final, e roda em qualquer máquina com Docker, sem `.venv`,
+DVC nem dados. O modelo precisa estar em `models/` antes do build (só os dois arquivos que entram na
+imagem; um `dvc pull` sem argumentos traria também todos os dados):
+
+```bash
+dvc pull models/transformer.pt models/tokenizer.json
+```
+
+```bash
+make docker-build
+```
+
+```bash
+make docker-run
+```
+
+Depois é só abrir <http://127.0.0.1:8000>. O `make docker-run` publica a porta só em `127.0.0.1`,
+porque a API não tem autenticação. Para parar, use `Ctrl+C` ou `docker stop nano-review`. Se a
+porta 8000 já estiver ocupada (por exemplo, pela API rodando no `.venv`), pare o outro processo ou
+escolha outra porta:
+
+```bash
+make docker-run PORT=8001
+```
+
+A página e a API funcionam sem internet. O `/docs` não: a documentação automática do FastAPI carrega
+o estilo e o script de uma CDN, e fica em branco offline.
+
+- **O que entra na imagem:** o `.dockerignore` é uma lista do que **pode** entrar (o `src/`, o
+  `pyproject.toml`, o `requirements-api.txt` e os dois arquivos do modelo). Dados, `.git`, `.venv`,
+  MLflow e relatórios ficam de fora.
+- **As dependências:** o torch CPU 2.15.0 e as bibliotecas do `requirements-api.txt`, todas nas
+  versões exatas do `.venv`, inclusive as indiretas (o que as bibliotecas puxam). Elas incluem o joblib e o scikit-learn, porque o gerador importa uma função de
+  `evaluation/metrics.py`, e esse módulo importa o juiz de sentimento.
+- **O tamanho:** ~2 GB. O torch sozinho ocupa ~970 MB; as outras bibliotecas, ~420 MB; o modelo,
+  22 MB.
+- **A segurança:** a API roda como o usuário `app`, sem privilégios de root.
+- **A saúde:** um `HEALTHCHECK` chama o `/health` a cada 30 s, e o `docker ps` mostra o contêiner
+  como `healthy`. A API sobe em uns 5 s.
