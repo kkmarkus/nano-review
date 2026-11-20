@@ -161,3 +161,55 @@ Cada referência usa 200 resenhas reais por nota, como as amostras geradas.
    decora.
 6. **O produto se comportou como na 4.2:** nenhuma resenha esgotou as tentativas, 2,7% precisaram de
    mais de uma (no máximo 3), e o tempo médio foi de 172 ms por resenha nesta máquina.
+
+## Resultado do lote v2 (rubrica v1.1)
+
+Pontuado às cegas pelo autor, com a chave aberta só depois da planilha inteira. Os números estão em
+`reports/metrics/rubric_v2.json`.
+
+| Fonte | Amostras ruins | Fluência | Plausibilidade | Coerência | Repetição |
+|---|---:|---:|---:|---:|---:|
+| Resenhas reais do teste (controle) | **0%** (0 de 50) | 2,94 | 2,96 | 2,84 | 3,00 |
+| Padrão (T 1, sem top-k) | **10%** (5 de 50) | 2,22 | 2,54 | 2,82 | 2,96 |
+| Top-k 50 | **0%** (0 de 50) | 2,70 | 2,78 | 2,88 | 2,98 |
+
+Amostra ruim é a que tem algum critério com nota 1. As colunas de critério são médias de 1 a 3.
+
+### Leitura, pela regra escrita antes
+
+1. **O autor, às cegas, leu 45 dos 50 textos padrão como resenha.** Os 5 ruins foram todos por
+   fluência 1, e nenhum por plausibilidade, coerência ou repetição. Eles ficam nas notas 1, 2 e 5
+   (2, 2 e 1 textos). Mas "não ruim" não quer dizer "perfeito": 29 dos 50 tiveram fluência 2 (dá para
+   entender, com trechos estranhos), e só 13 tiveram nota 3 nos quatro critérios. Nas resenhas reais
+   do teste, foram 39 de 50, e no top-k 50, 27.
+2. **Top-k 50 contra o padrão: na direção esperada, mas não é um achado.** A diferença é de 10 pontos
+   (0% contra 10%). O pré-registro fixou que diferenças menores que uns 18 pontos não seriam
+   tratadas como achado, e 10 está abaixo disso. Aquela margem foi calculada para frações perto de
+   30%; com as frações observadas, o teste exato de Fisher dá p = 0,056, e a conclusão é a mesma. A
+   fluência média (2,70 contra 2,22) aponta para o mesmo lado que a queda de seis vezes nas palavras
+   inventadas da 4.1, mas a comparação das médias não foi pré-registrada e fica como descrição. O
+   padrão do produto continua o da regra da 4.1 (temperatura 1, sem top-k), escolhido pela
+   diversidade (H6), que o top-k 50 reprova.
+3. **O padrão caiu de 37% (lote v1) para 10%, e aqui a leitura fica mais cautelosa que o
+   pré-registro.** A regra escrita antes dizia que um número bem abaixo de 37% indicaria que os
+   filtros ajudaram, "com as diferenças de rubrica entrando na leitura". Olhando os dados, essas
+   diferenças pesam demais para atribuir a queda aos filtros. Mudaram várias coisas ao mesmo tempo:
+   - **a rubrica:** a v1.1 esclareceu três fronteiras (fluência 1 ou 2, coerência na nota 3 e
+     plausibilidade de textos curtos). Das 37 amostras ruins do v1, 33 tinham fluência 1 e 18
+     tinham plausibilidade 1, e só 16 eram ruins apenas pela fluência;
+   - **os filtros da 4.2:** o limite de 83 tokens corta os textos longos, que a análise de erros
+     associou às amostras ruins;
+   - **as amostras:** são outras, sorteadas de outro conjunto;
+   - **o avaliador:** é o mesmo, mas pontuou o v2 depois de fazer a análise de erros do v1, o que
+     pode mudar o olhar;
+   - **a composição do lote:** no v1, um terço era a salada do trigrama, que pode ter feito o texto
+     do Transformer parecer melhor ou pior por contraste; no v2, dois terços são texto do modelo.
+
+   O desenho do lote não separa essas causas. O que dá para afirmar é o número de agora: com a
+   rubrica v1.1, o texto padrão do produto teve 10% de amostras ruins.
+4. **O controle seguiu funcionando neste lote:** 0% de resenhas reais ruins (3% no v1). Com a
+   rubrica v1.1, este avaliador não puniu o jeito informal de escrever do B2W em nenhuma das 50.
+
+**Limite:** são 50 textos por fonte e um avaliador só, que é o autor. A margem de 95% da fração de
+ruins do padrão vai de 4% a 21%. Os números servem para descrever o produto, e não para comparações
+finas.

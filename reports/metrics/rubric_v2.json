@@ -1,0 +1,195 @@
+{
+  "rubric_version": "1.1",
+  "sources": {
+    "real": {
+      "samples": 50,
+      "bad_fraction": 0.0,
+      "means": {
+        "fluency": 2.94,
+        "plausibility": 2.96,
+        "coherence": 2.84,
+        "repetition": 3.0
+      },
+      "by_rating": {
+        "1": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 3.0,
+            "plausibility": 3.0,
+            "coherence": 3.0,
+            "repetition": 3.0
+          }
+        },
+        "2": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 2.9,
+            "plausibility": 3.0,
+            "coherence": 2.9,
+            "repetition": 3.0
+          }
+        },
+        "3": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 2.9,
+            "plausibility": 2.9,
+            "coherence": 2.4,
+            "repetition": 3.0
+          }
+        },
+        "4": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 2.9,
+            "plausibility": 2.9,
+            "coherence": 3.0,
+            "repetition": 3.0
+          }
+        },
+        "5": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 3.0,
+            "plausibility": 3.0,
+            "coherence": 2.9,
+            "repetition": 3.0
+          }
+        }
+      },
+      "with_notes": 16
+    },
+    "transformer": {
+      "samples": 50,
+      "bad_fraction": 0.1,
+      "means": {
+        "fluency": 2.22,
+        "plausibility": 2.54,
+        "coherence": 2.82,
+        "repetition": 2.96
+      },
+      "by_rating": {
+        "1": {
+          "samples": 10,
+          "bad_fraction": 0.2,
+          "means": {
+            "fluency": 2.2,
+            "plausibility": 2.6,
+            "coherence": 2.9,
+            "repetition": 2.9
+          }
+        },
+        "2": {
+          "samples": 10,
+          "bad_fraction": 0.2,
+          "means": {
+            "fluency": 1.8,
+            "plausibility": 2.4,
+            "coherence": 3.0,
+            "repetition": 2.9
+          }
+        },
+        "3": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 2.2,
+            "plausibility": 2.3,
+            "coherence": 2.4,
+            "repetition": 3.0
+          }
+        },
+        "4": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 2.6,
+            "plausibility": 2.7,
+            "coherence": 2.9,
+            "repetition": 3.0
+          }
+        },
+        "5": {
+          "samples": 10,
+          "bad_fraction": 0.1,
+          "means": {
+            "fluency": 2.3,
+            "plausibility": 2.7,
+            "coherence": 2.9,
+            "repetition": 3.0
+          }
+        }
+      },
+      "with_notes": 10
+    },
+    "transformer_k50": {
+      "samples": 50,
+      "bad_fraction": 0.0,
+      "means": {
+        "fluency": 2.7,
+        "plausibility": 2.78,
+        "coherence": 2.88,
+        "repetition": 2.98
+      },
+      "by_rating": {
+        "1": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 2.6,
+            "plausibility": 2.5,
+            "coherence": 2.9,
+            "repetition": 3.0
+          }
+        },
+        "2": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 2.7,
+            "plausibility": 2.7,
+            "coherence": 2.9,
+            "repetition": 3.0
+          }
+        },
+        "3": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 2.5,
+            "plausibility": 2.8,
+            "coherence": 2.6,
+            "repetition": 3.0
+          }
+        },
+        "4": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 2.7,
+            "plausibility": 2.9,
+            "coherence": 3.0,
+            "repetition": 2.9
+          }
+        },
+        "5": {
+          "samples": 10,
+          "bad_fraction": 0.0,
+          "means": {
+            "fluency": 3.0,
+            "plausibility": 3.0,
+            "coherence": 3.0,
+            "repetition": 3.0
+          }
+        }
+      },
+      "with_notes": 13
+    }
+  },
+  "H3": null
+}

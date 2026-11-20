@@ -224,6 +224,11 @@ validação.
 viu, com perplexity 22% menor que a do trigrama. O produto entrega texto coerente com a nota (93% do
 teto do juiz), mais variado e menos copiado do treino que as resenhas reais.
 
+Um lote humano novo (v2, rubrica v1.1, às cegas) leu o texto do produto: 10% de amostras ruins no
+padrão, todas por fluência, contra 0% nas resenhas reais do teste. São 50 textos por fonte e um
+avaliador, o autor. O número **não é comparável** com os 37% do H3: a rubrica, as amostras e a
+composição do lote mudaram (`docs/final_test.md`).
+
 ## 8. Riscos
 
 | Risco | Efeito | Mitigação |
