@@ -99,3 +99,65 @@ resenhas vêm do modelo, e a cópia e o vocabulário, do treino. Por isso o ensa
 semente 2027, e a execução de verdade vai reproduzi-las exatamente. Isso não muda nada, porque tudo
 acima desta seção (modelo, decodificação, filtros, limiares e a regra "reprovou é reprovou") foi
 fixado e commitado antes. O que o teste traz de novo é o H1 e as referências humanas.
+
+## Resultado (20/11/2026, 19:48–19:53 UTC, commit 0ea7148)
+
+O estágio `final_eval` rodou **uma vez**, em 4 min 43 s, e foi congelado em seguida (`frozen: true`
+no `dvc.yaml`). Os números estão em `reports/metrics/final_eval.json` e no run `final-test` do
+MLflow.
+
+**A sanidade passou antes de o teste ser lido:** 69,31 (Transformer) e 90,2 (trigrama), os mesmos
+números já conhecidos.
+
+### As hipóteses no teste
+
+| # | Medida | Limiar | Validação (Etapa 3) | **Teste** | Passou? |
+|---|---|---|---:|---:|---|
+| H1 | Perplexity por palavra (Transformer) | ≤ 72 | 69,31 | **68,94** | sim |
+| — | Perplexity por palavra (trigrama), as mesmas resenhas | — | 90,2 | 88,87 | — |
+| H2 | Coerência macro | ≥ 0,57 | 0,721 | **0,704** | sim |
+| H4 | Cópia exata | ≤ 1% | 0,0% | **0,0%** | sim |
+| H5 | Cópia de 8 palavras | ≤ 7% | 3,1% | **1,8%** | sim |
+| H6 | Distinct-2 | ≥ 0,59 | 0,681 | **0,679** | sim |
+| H3 | Rubrica humana | < trigrama | 37% contra 85% | não se mede no teste | sim (validação) |
+
+As colunas têm fontes diferentes:
+- **H1, teste:** as 12.607 resenhas do teste, 280 delas pontuadas por janela deslizante por serem
+  maiores que o contexto.
+- **H2 a H6, teste:** 1.000 resenhas novas do produto, geradas com a decodificação padrão, os filtros
+  e a semente 2027.
+- **H2 a H6, validação:** o texto cru da Etapa 3, com a semente 42.
+
+### As referências humanas do teste
+
+| Medida | Resenhas reais da validação | Resenhas reais do teste | Produto (teste) |
+|---|---:|---:|---:|
+| Coerência pelo juiz (o teto) | 0,728 | 0,755 | 0,704 |
+| Distinct-2 | 0,655 | 0,652 | 0,679 |
+| Cópia de 8 palavras, depois do dedupe | 3,3% | 3,5% | 1,8% |
+| Cópia de 8 palavras, antes do dedupe | 5,5% | 5,1% | — |
+| Palavras por resenha (média) | — | 26,2 | 17,4 |
+
+Cada referência usa 200 resenhas reais por nota, como as amostras geradas.
+
+### Leitura
+
+1. **O modelo generaliza para resenhas que nunca viu.** A perplexity no teste (68,94) é até um
+   pouco menor que na validação (69,31). A vantagem sobre o trigrama se mantém: 22,4% menor no teste,
+   contra 23,2% na validação. A ligeira melhora não é mérito do modelo, e sim a variação natural entre
+   dois conjuntos de produtos diferentes: o trigrama também melhorou no teste (de 90,2 para 88,87).
+2. **As cinco hipóteses medidas passam no teste**, todas com folga. A menor folga é a do H2: 0,704
+   contra 0,57.
+3. **A semente nova custou um pouco de coerência**, como o pré-registro previa. Com o mesmo pipeline,
+   as resenhas da semente 42 tinham coerência 0,728 (`reports/metrics/inference.json`), e as da
+   semente 2027, 0,704: 2,4 pontos a menos. Isso está dentro do erro padrão de uns 2 pontos, mas na
+   direção esperada. É o motivo de não medir o resultado final nas amostras usadas para escolher.
+4. **O produto fica perto do teto do juiz:** 0,704 contra 0,755 nas resenhas reais do teste, ou 93%
+   do teto. Por nota, a mais difícil continua sendo a 3 (0,52 no produto, contra 0,615 nas reais).
+5. **Mais variado e menos copiado que as pessoas:** o distinct-2 do produto (0,679) passa o das
+   resenhas reais (0,652), e a cópia de 8 palavras (1,8%) fica abaixo da humana (3,5%). Os textos
+   também são mais curtos (17,4 contra 26,2 palavras), em parte pelo limite de 83 tokens, e texto
+   curto repete menos trechos longos. Por isso a cópia baixa não prova sozinha que o modelo não
+   decora.
+6. **O produto se comportou como na 4.2:** nenhuma resenha esgotou as tentativas, 2,7% precisaram de
+   mais de uma (no máximo 3), e o tempo médio foi de 172 ms por resenha nesta máquina.

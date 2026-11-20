@@ -308,9 +308,12 @@ stages:
           cache: false
 
   final_eval:
-    # Etapa 4.3: o ÚNICO estágio que lê data/curated/test.parquet. Roda uma vez e depois é
-    # congelado com `dvc freeze final_eval` (docs/final_test.md). Antes de ler o teste, confere
-    # na validação as perplexities já conhecidas e para com erro se não baterem.
+    # Etapa 4.3: o ÚNICO estágio que lê data/curated/test.parquet. Rodou uma vez (20/11/2026,
+    # commit 0ea7148) e está congelado: `frozen: true` faz o `dvc repro` pular o estágio, mesmo se
+    # uma dependência mudar (docs/final_test.md). O `dvc freeze` não reescreve estágios com
+    # ${...}, por isso o campo foi escrito à mão. Antes de ler o teste, o estágio confere na
+    # validação as perplexities já conhecidas e para com erro se não baterem.
+    frozen: true
     cmd: >-
       python -m nano_review.evaluation.final_eval
       --checkpoint models/transformer.pt

@@ -3,7 +3,8 @@
 > Versão 0.5 (fim da Etapa 2: definição da cópia exata corrigida e cautelas de medida acrescentadas
 > pela revisão, antes de medir qualquer amostra do Transformer; os limiares não mudaram). Versão 0.4:
 > fim da Etapa 1, baseline medido e limiares da hipótese fixados antes do Transformer. Versão 0.6:
-> fim da Etapa 3, seção 7.1 com o resultado na validação; nada acima dela mudou. Este documento fixa o problema e a forma de medir o sucesso
+> fim da Etapa 3, seção 7.1 com o resultado na validação; nada acima dela mudou. Versão 0.7: seção
+> 7.2 com o teste final (Etapa 4.3), aberto uma única vez. Este documento fixa o problema e a forma de medir o sucesso
 > **antes** de existir modelo, para que a avaliação não seja ajustada depois para caber no resultado.
 
 ## 1. Problema e nicho
@@ -200,6 +201,28 @@ fechado: o número que vai para o relatório final é o dele, na Etapa 4.
 tem fluência 1 em um terço das amostras (das 33, 12 começam bem e se perdem, 12 já começam
 quebradas, 8 misturam assuntos e 1 entra em loop), e a nota 2, a mais rara no treino, é a pior (`reports/metrics/rubric.json` e
 `docs/error_analysis.md`).
+
+### 7.2 Resultado no teste (Etapa 4.3, 20/11/2026)
+
+O teste foi aberto **uma única vez**, a partir de um commit com o pré-registro já publicado
+(`docs/final_test.md`, commit 0ea7148). Os detalhes e a leitura estão no `docs/final_test.md`.
+
+| # | Limiar | Validação | **Teste** | Passou? |
+|---|---|---:|---:|---|
+| H1 | Perplexity por palavra ≤ 72 (trigrama no teste: 88,87) | 69,31 | **68,94** | sim |
+| H2 | Coerência macro ≥ 0,57 | 0,721 | **0,704** | sim |
+| H3 | Amostras ruins na rubrica < trigrama | 37% contra 85% | — | sim (validação) |
+| H4 | Cópia exata ≤ 1% | 0,0% | **0,0%** | sim |
+| H5 | Cópia de 8 palavras ≤ 7% | 3,1% | **1,8%** | sim |
+| H6 | Distinct-2 ≥ 0,59 | 0,681 | **0,679** | sim |
+
+No teste, H2 a H6 foram medidas em 1.000 resenhas novas do produto (decodificação padrão e filtros
+da Etapa 4, semente nunca usada). O H3 compara o Transformer com o trigrama e foi medido só na
+validação.
+
+**A hipótese foi confirmada no teste.** O Transformer generaliza para resenhas de produtos que nunca
+viu, com perplexity 22% menor que a do trigrama. O produto entrega texto coerente com a nota (93% do
+teto do juiz), mais variado e menos copiado do treino que as resenhas reais.
 
 ## 8. Riscos
 

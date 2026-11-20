@@ -1,0 +1,148 @@
+{
+  "sanity": {
+    "transformer_validation": {
+      "measured": 69.31,
+      "expected": 69.31,
+      "ok": true
+    },
+    "trigram_validation": {
+      "measured": 90.2,
+      "expected": 90.2,
+      "ok": true
+    }
+  },
+  "test": {
+    "reviews": 12607,
+    "transformer": {
+      "word_perplexity": 68.94,
+      "token_perplexity": 42.04,
+      "tokens_per_word": 1.1323,
+      "reviews": 12607,
+      "reviews_over_block_size": 280
+    },
+    "trigram_word_perplexity": 88.87
+  },
+  "samples": {
+    "coherence": {
+      "macro": 0.7042,
+      "by_class": {
+        "negative": 0.7975,
+        "neutral": 0.52,
+        "positive": 0.795
+      },
+      "by_rating": {
+        "1": 0.935,
+        "2": 0.66,
+        "3": 0.52,
+        "4": 0.715,
+        "5": 0.875
+      }
+    },
+    "empty_rate": 0.0,
+    "distinct_1": 0.1864,
+    "distinct_2": 0.6793,
+    "copy": {
+      "exact": 0.0,
+      "ngram": 0.018,
+      "any": 0.018
+    },
+    "mean_words": 17.4,
+    "invented_per_100_words": 3.812,
+    "passed": {
+      "H2": true,
+      "H4": true,
+      "H5": true,
+      "H6": true
+    },
+    "passes_all": true,
+    "delivered": 1000,
+    "failures": 0,
+    "attempts": {
+      "mean": 1.029,
+      "max": 3,
+      "more_than_one": 0.027
+    },
+    "rejected": {
+      "too_long": 29,
+      "empty": 0,
+      "repetition": 0,
+      "personal_data": 0
+    },
+    "ms_per_review": {
+      "mean": 171.5,
+      "median": 111.3,
+      "p95": 509.6
+    }
+  },
+  "real_test_reference": {
+    "coherence": {
+      "macro": 0.755,
+      "by_class": {
+        "negative": 0.8275,
+        "neutral": 0.615,
+        "positive": 0.8225
+      },
+      "by_rating": {
+        "1": 0.97,
+        "2": 0.685,
+        "3": 0.615,
+        "4": 0.73,
+        "5": 0.915
+      }
+    },
+    "empty_rate": 0.0,
+    "distinct_1": 0.159,
+    "distinct_2": 0.6517,
+    "copy": {
+      "exact": 0.0,
+      "ngram": 0.035,
+      "any": 0.035
+    },
+    "mean_words": 26.2,
+    "copy_before_dedupe": {
+      "exact": 0.0064,
+      "ngram": 0.0506,
+      "any": 0.0513
+    }
+  },
+  "hypotheses": {
+    "H1": {
+      "measure": "perplexity por palavra",
+      "value": 68.94,
+      "threshold": "<= 72.0",
+      "passed": true
+    },
+    "H2": {
+      "measure": "coerência macro",
+      "value": 0.7042,
+      "threshold": ">= 0.57",
+      "passed": true
+    },
+    "H4": {
+      "measure": "cópia exata",
+      "value": 0.0,
+      "threshold": "<= 0.01",
+      "passed": true
+    },
+    "H5": {
+      "measure": "cópia de 8 palavras",
+      "value": 0.018,
+      "threshold": "<= 0.07",
+      "passed": true
+    },
+    "H6": {
+      "measure": "distinct-2",
+      "value": 0.6793,
+      "threshold": ">= 0.59",
+      "passed": true
+    },
+    "H3": {
+      "measure": "fluência (rubrica, às cegas)",
+      "passed": "pendente"
+    }
+  },
+  "control": {
+    "per_rating": 10,
+    "max_tokens": 83
+  }
+}

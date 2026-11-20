@@ -561,3 +561,130 @@ stages:
       hash: md5
       md5: d79929776e51b1f5002cadb4d2be4bbe
       size: 341738
+  final_eval:
+    cmd: python -m nano_review.evaluation.final_eval --checkpoint 
+      models/transformer.pt --tokenizer models/tokenizer.json --judge 
+      models/judge.joblib --train data/curated/train.parquet --validation 
+      data/curated/validation.parquet --test data/curated/test.parquet --raw 
+      data/raw/B2W-Reviews01.csv --baseline reports/metrics/baseline.json 
+      --transformer-eval reports/metrics/transformer_eval.json --metrics 
+      reports/metrics/final_eval.json --samples reports/samples/final_eval.jsonl
+      --control reports/samples/test_real_control.jsonl --stride 64 --max-repeat
+      3 --vocab-min-count 2 --samples-per-rating 200 --seed 2027 
+      --control-per-rating 10 --control-seed 2028
+    deps:
+    - path: data/curated/test.parquet
+      hash: md5
+      md5: b5a17c2dd23678c1c55a424e3408cac2
+      size: 1180621
+    - path: data/curated/train.parquet
+      hash: md5
+      md5: de6f177a019d0d3640803491421ed96b
+      size: 9168996
+    - path: data/curated/validation.parquet
+      hash: md5
+      md5: b91faa31a10db300400d8c65b4329863
+      size: 1188736
+    - path: data/raw/B2W-Reviews01.csv
+      hash: md5
+      md5: 3d6bb9c7546fe32bb4dff53eaeedafda
+      size: 49453175
+    - path: models/judge.joblib
+      hash: md5
+      md5: 81c5b2e6072958febb8f04b4c884c8cf
+      size: 8492324
+    - path: models/tokenizer.json
+      hash: md5
+      md5: 1bae17c129ed78c70afc090554bcce3c
+      size: 558660
+    - path: models/transformer.pt
+      hash: md5
+      md5: 9181cbbd30af305a7a1015b5375e3ee7
+      size: 20980783
+    - path: reports/metrics/baseline.json
+      hash: md5
+      md5: 8124ca1323eb0b6b3ad2a63cbe3841f9
+      size: 2883
+    - path: reports/metrics/transformer_eval.json
+      hash: md5
+      md5: 7766e5295005ba46bb2379d1f8820b23
+      size: 1609
+    - path: src/nano_review/baseline/evaluate.py
+      hash: md5
+      md5: ab7012ae758c874d1d5c513df03a0fc0
+      size: 10403
+    - path: src/nano_review/baseline/judge.py
+      hash: md5
+      md5: 14f1f61ad192b6021e78489d4455bf7a
+      size: 6966
+    - path: src/nano_review/baseline/ngram.py
+      hash: md5
+      md5: cddc0c7a75494277352399d4865d52a2
+      size: 11791
+    - path: src/nano_review/data/clean.py
+      hash: md5
+      md5: 66b582e16b7a2d17bfd464bdd022f39b
+      size: 10165
+    - path: src/nano_review/evaluation/decoding.py
+      hash: md5
+      md5: 70ae1e13641f5036355f862fd9820157
+      size: 9742
+    - path: src/nano_review/evaluation/error_analysis.py
+      hash: md5
+      md5: f57fb73e9e29d0f8cad40d455fc7ba0f
+      size: 7656
+    - path: src/nano_review/evaluation/final_eval.py
+      hash: md5
+      md5: 5f76696d7f95dcb9384f51e0c1b6928a
+      size: 9421
+    - path: src/nano_review/evaluation/inference_check.py
+      hash: md5
+      md5: d9123ff6e3c664795a3772a4d348aa15
+      size: 7120
+    - path: src/nano_review/evaluation/metrics.py
+      hash: md5
+      md5: bd92df8ff96a963516c2ec4193703dad
+      size: 5640
+    - path: src/nano_review/evaluation/transformer_eval.py
+      hash: md5
+      md5: ad3e15e44ebe38bf18d821c5b214d9aa
+      size: 14017
+    - path: src/nano_review/inference/generator.py
+      hash: md5
+      md5: 59534d0cc0df6ea1ba9ff903d45e6c16
+      size: 8989
+    - path: src/nano_review/inference/sampling.py
+      hash: md5
+      md5: e36073551bb2967207a19b490ed9467d
+      size: 3281
+    - path: src/nano_review/models/transformer.py
+      hash: md5
+      md5: a89a66243bbb9f9043619b767d16fb8d
+      size: 10690
+    - path: src/nano_review/tokenization/bpe.py
+      hash: md5
+      md5: cafe3034075d739eb7f87eeeffd29c98
+      size: 6849
+    params:
+      params.yaml:
+        baseline.vocab_min_count: 2
+        clean.max_repeat: 3
+        evaluate.stride: 64
+        final_eval:
+          samples-per-rating: 200
+          seed: 2027
+          control-per-rating: 10
+          control-seed: 2028
+    outs:
+    - path: reports/metrics/final_eval.json
+      hash: md5
+      md5: 7f6667800c0c6f2fdaa5a4a50b4d2876
+      size: 2890
+    - path: reports/samples/final_eval.jsonl
+      hash: md5
+      md5: 5fb603716f11917bae7dc9b9d8086613
+      size: 174655
+    - path: reports/samples/test_real_control.jsonl
+      hash: md5
+      md5: 021dd784e065f2ab8e8e19023cefb959
+      size: 7943
