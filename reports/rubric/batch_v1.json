@@ -1,0 +1,27 @@
+{
+  "rubric_version": "1.0",
+  "seed": 2026,
+  "per_rating": 20,
+  "rows": 300,
+  "sampling": "amostras da avaliação: temperatura 1, sem top-k, semente 42",
+  "real_filter": "resenhas da validação que cabem em block_size=128",
+  "sources": {
+    "trigram": {
+      "path": "reports/samples/baseline.jsonl",
+      "md5": "cae3ac806d42fbc3fd5cf6fd1abb8d5a"
+    },
+    "transformer": {
+      "path": "reports/samples/transformer_eval.jsonl",
+      "md5": "d901096b33f87bc4d8e15607e0b70e99"
+    },
+    "real": {
+      "path": "data/curated/validation.parquet",
+      "md5": "b91faa31a10db300400d8c65b4329863"
+    }
+  },
+  "pool_sizes": {
+    "trigram": 1000,
+    "transformer": 1000,
+    "real": 12385
+  }
+}
