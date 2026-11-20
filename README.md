@@ -42,23 +42,37 @@ passar antes de qualquer commit ou entrega.
 
 ## Estrutura
 
-```
-src/nano_review/   código do pacote (cada subpasta nasce na etapa que a usa)
-  data/            limpeza (clean.py), split por produto (split.py), Dataset e DataLoader (dataset.py)
-  tokenization/    tokenizador BPE (bpe.py) e BPE didático escrito à mão (bpe_demo.py)
-  models/          loss, bigrama neural e Transformer com atenção escrita à mão
-  training/        laço de treino, avaliação, checkpoint e curva (train.py)
-  baseline/        juiz de sentimento (judge.py) e geradores de n-gramas (ngram.py, evaluate.py)
-  evaluation/      métricas do charter, as mesmas para o baseline e o Transformer
-tests/             testes automatizados
-docs/              charter, manifesto de dados e relatório
-notebooks/         exploração de dados (não é o pipeline: as regras de verdade ficam em src/)
-reports/figures/   figuras geradas pelos notebooks e pelo treino (train_curve.png)
-reports/metrics/   métricas geradas pelo pipeline (limpeza, split, juiz, baseline, tokenizador, treino)
-reports/samples/   amostras geradas, para a rubrica e a análise de erros
-configs/           reservada (vazia por enquanto); os hiperparâmetros ficam no params.yaml
-params.yaml        parâmetros de todos os estágios, dos dados ao treino (lidos pelo DVC)
-dvc.yaml           estágios do pipeline, dos dados brutos ao modelo treinado
+```text
+nano-review/
+├── src/nano_review/        # código do pacote Python
+│   ├── data/               # limpeza, split por produto, Dataset e DataLoader
+│   ├── tokenization/       # tokenizador BPE e um BPE didático escrito à mão
+│   ├── models/             # bigrama neural e Transformer (atenção à mão)
+│   ├── training/           # laço de treino, checkpoint e export do MLflow
+│   ├── baseline/           # juiz de sentimento e geradores de n-gramas
+│   ├── evaluation/         # métricas, avaliação do Transformer e rubrica
+│   └── reproducibility.py  # set_seed: mesma semente, mesmo resultado
+├── tests/                  # testes automatizados (make check)
+├── notebooks/              # EDA, tokenização, forward/backward e atenção
+├── docs/                   # charter, manifesto, rubrica e experimentos
+├── data/                   # versionada pelo DVC (ver a seção abaixo)
+│   ├── raw/                # CSV original, nunca editado
+│   ├── processed/          # limpo, sem dados pessoais, sem duplicatas
+│   └── curated/            # train, validation e test, split por produto
+├── models/                 # tokenizador, juiz e Transformer (DVC)
+├── reports/
+│   ├── metrics/            # métricas geradas pelo pipeline (JSON)
+│   ├── figures/            # figuras dos notebooks e do treino
+│   ├── samples/            # amostras geradas pelos modelos
+│   ├── experiments/        # runs do MLflow exportadas (CSV)
+│   └── rubric/             # planilha às cegas e a chave, separada
+├── configs/                # reservada, vazia por enquanto
+├── params.yaml             # parâmetros de todos os estágios
+├── dvc.yaml                # estágios do pipeline
+├── dvc.lock                # hashes da última execução de cada estágio
+├── requirements.txt        # dependências do projeto
+├── requirements-dev.txt    # ferramentas: ruff, mypy, pytest
+└── Makefile                # make check
 ```
 
 ## Dados e modelos (DVC)
@@ -87,7 +101,24 @@ dvc push                             # envia para o remote os dados novos
 ### Pipeline (dos dados ao modelo)
 
 `data/processed` e `data/curated` não são baixados nem editados: são **gerados** pelo pipeline do
-`dvc.yaml`, com os parâmetros do `params.yaml`.
+`dvc.yaml`, com os parâmetros do `params.yaml`. Cada seta é um estágio, e o DVC só refaz um estágio
+quando a entrada, o código ou um parâmetro dele muda:
+
+```mermaid
+flowchart TD
+    src["Fonte: GitHub da B2W<br/>(commit fixado)"] -->|"dvc import-url"| raw["RAW<br/>B2W-Reviews01.csv"]
+    raw -->|"clean: tira dados pessoais,<br/>normaliza, deduplica"| proc["PROCESSED<br/>reviews.parquet"]
+    proc -->|"split: por produto, 80/10/10"| cur["CURATED<br/>train · validation · test"]
+    cur -->|"train"| tok["tokenizer<br/>BPE treinado só no treino"]
+    tok --> ds["Dataset / DataLoader<br/>#lt;bos#gt; #lt;nota_k#gt; texto #lt;eos#gt;"]
+    ds -->|"train: forward, loss,<br/>backward, AdamW"| ckpt["models/transformer.pt<br/>(melhor validação)"]
+    ckpt -->|"evaluate"| eval["reports/metrics<br/>H1 a H6"]
+    cur -->|"train, validation"| judge["judge: juiz de sentimento"]
+    cur -->|"train, validation"| base["baseline: trigrama por nota"]
+    judge --> eval
+    base --> eval
+    cur -.->|"test: aberto uma vez,<br/>só na Etapa 4"| final["avaliação final"]
+```
 
 ```bash
 source .venv/bin/activate   # os comandos do pipeline usam o python do .venv
@@ -105,7 +136,8 @@ dvc metrics show            # funil da limpeza e tamanhos do split
 | `train` | `train`, `validation`, tokenizador | `models/transformer.pt`, `reports/metrics/train.json`, `train_log.csv`, `reports/figures/train_curve.png` |
 | `evaluate` | checkpoint, tokenizador, juiz, `train`, `validation` | `reports/metrics/transformer_eval.json` (H1 a H6), `reports/samples/transformer_eval.jsonl` |
 
-O treino do Transformer leva ~13 minutos em CPU, e a avaliação, ~2 minutos. `dvc plots show` desenha a curva de
+O treino do Transformer, na configuração final da Etapa 3, leva ~66 minutos em CPU (16 núcleos), e
+a avaliação, ~4 minutos. `dvc plots show` desenha a curva de
 treino e validação a partir de `reports/metrics/train_log.csv`.
 
 O split é **por produto** (nenhum produto aparece em dois conjuntos), com 80/10/10 das resenhas.
@@ -131,3 +163,7 @@ mlflow ui --host 127.0.0.1 --port 5000                            # painel em ht
 - Rode um experimento por vez, na pasta do projeto: o `mlflow.db` e a pasta `mlruns/` ficam aqui, fora
   do Git. Os números que contam continuam versionados em `reports/metrics/`.
 - Para promover um experimento ao workspace: `dvc exp apply <nome>`.
+- Como o MLflow fica fora do Git, as runs são exportadas para `reports/experiments/`: `runs.csv`
+  (parâmetros e métricas finais de cada run) e `curves.csv` (as curvas passo a passo). Depois de
+  rodar experimentos novos, atualize com
+  `python -m nano_review.training.export_runs --out-dir reports/experiments`.

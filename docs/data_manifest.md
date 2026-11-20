@@ -88,3 +88,42 @@ não identificam a pessoa sozinhos, e o charter não os exige.
 - `recommend_to_a_friend`: 96.368 `Yes`, 35.987 `No`, 18 nulos.
 - Estes números são do arquivo **bruto**. Eles mudam depois da limpeza e da deduplicação, e a EDA
   (`notebooks/`) é onde eles são analisados.
+
+## Os 5 Vs deste dataset
+
+Os 5 Vs descrevem um conjunto de dados por cinco eixos: volume, velocidade, variedade, veracidade e
+valor. Aqui eles servem para justificar as escolhas de engenharia, e não para inflar o problema.
+
+| V | No B2W-Reviews01 | Consequência no projeto |
+|---|---|---|
+| **Volume** | 132.373 resenhas brutas (49 MB de CSV). Depois da limpeza, 126.055 resenhas e ~2,9 milhões de palavras (mediana de 16 por resenha), de 48.001 produtos. | Cabe na memória de um notebook. O processamento é em pandas, numa máquina só. Spark ou um cluster não teriam justificativa técnica. |
+| **Velocidade** | Base estática: resenhas de 01/01/2018 a 31/05/2018 (~880 por dia, em média), publicadas uma vez e fixadas num commit. Não chega dado novo. | Processamento em **batch** (abaixo). |
+| **Variedade** | Texto livre e informal (gírias, falta de acento, erros de digitação), mais campos estruturados (nota, data, produto, categoria) e o perfil do avaliador. | Só `review_text` e `overall_rating` entram no modelo. O perfil sai por ser dado pessoal, e o tokenizador BPE lida com o texto informal sem dicionário fixo. |
+| **Veracidade** | Funil medido em `reports/metrics/cleaning.json`: 3.275 linhas sem texto, 105 vazias depois da normalização, 521 textos idênticos com notas diferentes e 2.417 duplicatas. A documentação diverge do arquivo (o separador é vírgula, e não ponto e vírgula). A nota nem sempre combina com o texto: o juiz de sentimento acerta só 0,728 em resenhas reais. | Limpeza e dedupe **antes** do split. O teto de 0,728 é a referência da coerência (H2), e não 1,0. |
+| **Valor** | Resenhas reais, em português, com nota de 1 a 5 dada pelo próprio cliente, sob licença que permite uso acadêmico. | A nota vira o condicionamento (`<nota_k>`): é o que permite gerar resenha *com o tom pedido*, o objetivo do projeto. |
+
+## Batch, e não streaming
+
+O pipeline é **batch**: cada estágio do `dvc.yaml` lê um arquivo inteiro, processa e grava outro, e o
+`dvc repro` só refaz o que mudou. É a escolha certa aqui por três motivos:
+
+1. **A fonte não muda.** O arquivo está fixado num commit de um repositório arquivado. Streaming serve
+   para dados que chegam continuamente, e aqui não chega nada novo.
+2. **O treino é offline.** O modelo é treinado uma vez, em CPU, e avaliado numa validação fixa. Um
+   fluxo contínuo de dados mudaria a validação a cada leitura, e os experimentos deixariam de ser
+   comparáveis.
+3. **Reprodutibilidade.** Batch com hash de entrada (DVC) garante que a mesma entrada gere a mesma
+   saída. Isso é o que permite comparar runs e reproduzir o projeto em outra máquina.
+
+Streaming passaria a fazer sentido se o produto coletasse resenhas novas o tempo todo e o modelo
+precisasse se atualizar com elas. Isso fica fora do escopo. Na Etapa 4, a API atende pedidos **um a
+um** (inferência online), mas o modelo que ela carrega continua sendo treinado em batch.
+
+## Formatos
+
+| Camada | Formato | Por quê |
+|---|---|---|
+| `data/raw` | CSV (49 MB) | É o formato publicado pela fonte. Fica intocado, para conferência pelo hash. |
+| `data/processed` | Parquet (11,5 MB, só as 4 colunas que o projeto usa) | Colunar, tipado e comprimido. Lê só as colunas pedidas e preserva os tipos (a nota continua inteira, e o texto, texto), sem as ambiguidades de separador e de aspas do CSV. |
+| `data/curated` | Parquet (train, validation, test) | O mesmo motivo, e cada split é um arquivo separado: o `test.parquet` fica fechado, sem ser lido junto com os outros. |
+| `models/` | `.pt` (PyTorch), `.json` (tokenizador), `.joblib` (juiz) | O formato nativo de cada biblioteca, carregado pela mesma biblioteca que salvou. |
