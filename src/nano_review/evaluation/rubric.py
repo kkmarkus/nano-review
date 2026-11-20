@@ -130,7 +130,9 @@ def write_batch(
     # utf-8-sig (com BOM): sem ele, planilhas abrem os acentos como "Ã©".
     sheet.to_csv(sheet_path, index=False, encoding="utf-8-sig")
     key.to_csv(key_path, index=False, encoding="utf-8-sig")
-    metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n")
+    metadata_path.write_text(
+        json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
 
 
 def read_sheet(path: Path) -> pd.DataFrame:
@@ -162,8 +164,8 @@ def _summary(group: pd.DataFrame) -> dict[str, object]:
     }
 
 
-def summarize(sheet: pd.DataFrame, key: pd.DataFrame) -> dict[str, object]:
-    """Médias por fonte e por nota pedida, fração de amostras ruins e o H3."""
+def scored_table(sheet: pd.DataFrame, key: pd.DataFrame) -> pd.DataFrame:
+    """Planilha conferida e ligada à chave: notas inteiras, a fonte (``model``) e ``bad``."""
     check_scores(sheet)
     if sheet["sample_id"].duplicated().any():
         raise ValueError("a planilha tem sample_id repetido")
@@ -175,7 +177,12 @@ def summarize(sheet: pd.DataFrame, key: pd.DataFrame) -> dict[str, object]:
         df[column] = pd.to_numeric(df[column]).astype(int)
     # Amostra ruim: nota 1 em qualquer critério (docs/rubric.md, "Como resumir").
     df["bad"] = (df[list(CRITERIA)] == 1).any(axis=1)
+    return df
 
+
+def summarize(sheet: pd.DataFrame, key: pd.DataFrame) -> dict[str, object]:
+    """Médias por fonte e por nota pedida, fração de amostras ruins e o H3."""
+    df = scored_table(sheet, key)
     sources: dict[str, object] = {}
     bad_fraction: dict[str, float] = {}
     for name, group in df.groupby("model"):
@@ -228,7 +235,9 @@ def _batch(args: argparse.Namespace) -> None:
 def _summarize(args: argparse.Namespace) -> None:
     result = summarize(read_sheet(args.sheet), pd.read_csv(args.key, encoding="utf-8-sig"))
     args.metrics.parent.mkdir(parents=True, exist_ok=True)
-    args.metrics.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
+    args.metrics.write_text(
+        json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     print(json.dumps(result["H3"], ensure_ascii=False))
 
 
