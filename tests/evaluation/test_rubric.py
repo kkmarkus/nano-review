@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -12,6 +13,8 @@ from nano_review.evaluation.rubric import (
     SHEET_COLUMNS,
     batch_paths,
     build_batch,
+    exclude_seen,
+    load_source,
     normalize_spaces,
     read_sheet,
     real_reviews,
@@ -147,3 +150,48 @@ def test_reads_sheets_saved_with_semicolons(tmp_path: Path) -> None:
     path = tmp_path / "sheet.csv"
     sheet.to_csv(path, index=False, sep=";", encoding="utf-8-sig")
     assert tuple(read_sheet(path).columns) == SHEET_COLUMNS
+
+
+def _jsonl(path: Path, rows: list[dict[str, object]]) -> Path:
+    path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows))
+    return path
+
+
+def test_sources_come_from_jsonl_with_an_optional_label(tmp_path: Path) -> None:
+    path = _jsonl(
+        tmp_path / "samples.jsonl",
+        [
+            {"label": "t1.0-k0", "requested_rating": 5, "text": "Bom."},
+            {"label": "t1.0-k50", "requested_rating": 1, "text": "Ruim."},
+        ],
+    )
+    name, df = load_source(f"padrao={path}@t1.0-k0")
+    assert name == "padrao" and df.to_dict("records") == [{"requested_rating": 5, "text": "Bom."}]
+    _, everything = load_source(f"todas={path}")
+    assert len(everything) == 2
+    with pytest.raises(ValueError, match="label"):
+        load_source(f"x={path}@t0.7-k20")
+    with pytest.raises(ValueError, match="fonte inválida"):
+        load_source(str(path))
+
+
+def test_texts_already_seen_are_excluded_ignoring_case_and_punctuation() -> None:
+    pool = pd.DataFrame(
+        {"requested_rating": [5, 5, 1], "text": ["Ótimo produto!", "Chegou rápido", "Péssimo"]}
+    )
+    kept = exclude_seen(pool, {"ótimo produto", "péssimo"})
+    assert kept["text"].tolist() == ["Chegou rápido"]
+
+
+def test_a_second_batch_has_its_own_files_and_version(tmp_path: Path) -> None:
+    sheet, key = build_batch(SOURCES, per_rating=1, seed=0)
+    write_batch(tmp_path, sheet, key, {"seed": 0})  # v1
+    write_batch(tmp_path, sheet, key, {"seed": 0}, suffix="_v2")  # não colide com o v1
+    assert [p.name for p in batch_paths(tmp_path, "_v2")] == [
+        "sheet_v2.csv",
+        "key_v2.csv",
+        "batch_v2.json",
+    ]
+    for column in CRITERIA:
+        sheet[column] = 3
+    assert summarize(sheet, key, version="1.1")["rubric_version"] == "1.1"

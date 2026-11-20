@@ -8,6 +8,10 @@ São duas etapas, com uma pessoa no meio:
 2. ``summarize``: com a planilha pontuada, confere as notas, abre a chave e calcula as médias, a
    fração de amostras ruins e o H3.
 
+O lote v2 (Etapa 4.3, rubrica v1.1) usa ``batch-jsonl``: as fontes vêm de arquivos ``.jsonl``
+(``nome=caminho`` ou ``nome=caminho@combinação``), e todo texto já lido num lote anterior sai do
+sorteio (``--exclude``).
+
 Não é estágio do DVC: a planilha pontuada é trabalho humano, e um ``dvc repro`` não pode regerá-la.
 
 Uso::
@@ -18,6 +22,12 @@ Uso::
         --block-size 128 --out-dir reports/rubric --per-rating 20 --seed 2026
     python -m nano_review.evaluation.rubric summarize --sheet reports/rubric/sheet_v1.csv \\
         --key reports/rubric/key_v1.csv --metrics reports/metrics/rubric.json
+    python -m nano_review.evaluation.rubric batch-jsonl \\
+        --source transformer=reports/samples/inference.jsonl@t1.0-k0 \\
+        --source transformer_k50=reports/samples/inference.jsonl@t1.0-k50 \\
+        --source real=reports/samples/test_real_control.jsonl \\
+        --exclude reports/rubric/sheet_v1.csv --per-rating 10 --seed 2029 \\
+        --out-dir reports/rubric --suffix _v2 --version 1.1
 """
 
 from __future__ import annotations
@@ -33,6 +43,7 @@ import pandas as pd
 from tokenizers import Tokenizer
 
 from nano_review.baseline.evaluate import RATINGS
+from nano_review.data.clean import dedupe_key
 from nano_review.data.dataset import fits_in_context
 from nano_review.tokenization.bpe import encode_reviews
 
@@ -52,6 +63,32 @@ def load_samples(path: Path, model: str | None = None) -> pd.DataFrame:
     if model is not None:
         df = df[df["model"] == model]
     return df[["requested_rating", "text"]].reset_index(drop=True)
+
+
+def load_source(spec: str) -> tuple[str, pd.DataFrame]:
+    """``nome=caminho`` ou ``nome=caminho@combinação``: a fonte de um lote, lida de um ``.jsonl``.
+
+    A combinação filtra pela coluna ``label`` (por exemplo ``t1.0-k0`` no ``inference.jsonl``).
+    """
+    name, sep, location = spec.partition("=")
+    if not sep or not name or not location:
+        raise ValueError(f"fonte inválida: {spec!r} (use nome=caminho ou nome=caminho@combinação)")
+    path, _, label = location.partition("@")
+    df = pd.read_json(path, lines=True)
+    if label:
+        df = df[df["label"] == label]
+        if df.empty:
+            raise ValueError(f"{path} não tem nenhuma linha com label {label!r}")
+    return name, df[["requested_rating", "text"]].reset_index(drop=True)
+
+
+def exclude_seen(pool: pd.DataFrame, seen: set[str]) -> pd.DataFrame:
+    """Tira da fonte todo texto já lido, comparando sem caixa, pontuação nem espaços extras.
+
+    Um texto já pontuado num lote anterior, com a chave aberta, não é avaliação às cegas.
+    """
+    keep = [dedupe_key(text) not in seen for text in pool["text"]]
+    return pool[keep].reset_index(drop=True)
 
 
 def real_reviews(validation: pd.DataFrame, tokenizer: Tokenizer, block_size: int) -> pd.DataFrame:
@@ -105,20 +142,24 @@ def _md5(path: Path) -> str:
     return hashlib.md5(path.read_bytes()).hexdigest()
 
 
-def batch_paths(out_dir: Path) -> tuple[Path, Path, Path]:
+def batch_paths(out_dir: Path, suffix: str = BATCH_SUFFIX) -> tuple[Path, Path, Path]:
     """Planilha, chave e metadados do lote."""
     return (
-        out_dir / f"sheet{BATCH_SUFFIX}.csv",
-        out_dir / f"key{BATCH_SUFFIX}.csv",
-        out_dir / f"batch{BATCH_SUFFIX}.json",
+        out_dir / f"sheet{suffix}.csv",
+        out_dir / f"key{suffix}.csv",
+        out_dir / f"batch{suffix}.json",
     )
 
 
 def write_batch(
-    out_dir: Path, sheet: pd.DataFrame, key: pd.DataFrame, metadata: Mapping[str, object]
+    out_dir: Path,
+    sheet: pd.DataFrame,
+    key: pd.DataFrame,
+    metadata: Mapping[str, object],
+    suffix: str = BATCH_SUFFIX,
 ) -> None:
     """Grava o lote. Recusa sobrescrever: a planilha pode já estar pontuada."""
-    paths = batch_paths(out_dir)
+    paths = batch_paths(out_dir, suffix)
     existing = [str(path) for path in paths if path.exists()]
     if existing:
         raise FileExistsError(
@@ -180,7 +221,9 @@ def scored_table(sheet: pd.DataFrame, key: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def summarize(sheet: pd.DataFrame, key: pd.DataFrame) -> dict[str, object]:
+def summarize(
+    sheet: pd.DataFrame, key: pd.DataFrame, version: str = RUBRIC_VERSION
+) -> dict[str, object]:
     """Médias por fonte e por nota pedida, fração de amostras ruins e o H3."""
     df = scored_table(sheet, key)
     sources: dict[str, object] = {}
@@ -202,7 +245,7 @@ def summarize(sheet: pd.DataFrame, key: pd.DataFrame) -> dict[str, object]:
             "trigram": round(bad_fraction[TRIGRAM], 4),
             "passed": bad_fraction[TRANSFORMER] < bad_fraction[TRIGRAM],
         }
-    return {"rubric_version": RUBRIC_VERSION, "sources": sources, "H3": hypothesis}
+    return {"rubric_version": version, "sources": sources, "H3": hypothesis}
 
 
 def _batch(args: argparse.Namespace) -> None:
@@ -232,8 +275,41 @@ def _batch(args: argparse.Namespace) -> None:
     print(f"lote gravado em {args.out_dir}: {len(sheet)} amostras, {len(sources)} fontes")
 
 
+def _batch_jsonl(args: argparse.Namespace) -> None:
+    seen = {dedupe_key(text) for path in args.exclude for text in read_sheet(path)["text"]}
+    sources: dict[str, pd.DataFrame] = {}
+    excluded: dict[str, int] = {}
+    for spec in args.source:
+        name, pool = load_source(spec)
+        if name in sources:
+            raise ValueError(f"fonte repetida: {name}")
+        sources[name] = exclude_seen(pool, seen)
+        excluded[name] = len(pool) - len(sources[name])
+    sheet, key = build_batch(sources, args.per_rating, args.seed)
+    metadata = {
+        "rubric_version": args.version,
+        "seed": args.seed,
+        "per_rating": args.per_rating,
+        "rows": len(sheet),
+        "sources": {
+            spec.partition("=")[0]: {
+                "spec": spec.partition("=")[2],
+                "md5": _md5(Path(spec.partition("=")[2].partition("@")[0])),
+            }
+            for spec in args.source
+        },
+        "excluded_as_already_seen": excluded,
+        "exclude_from": [str(path) for path in args.exclude],
+        "pool_sizes": {name: len(pool) for name, pool in sources.items()},
+    }
+    write_batch(args.out_dir, sheet, key, metadata, args.suffix)
+    print(f"lote gravado em {args.out_dir}: {len(sheet)} amostras, {len(sources)} fontes")
+
+
 def _summarize(args: argparse.Namespace) -> None:
-    result = summarize(read_sheet(args.sheet), pd.read_csv(args.key, encoding="utf-8-sig"))
+    result = summarize(
+        read_sheet(args.sheet), pd.read_csv(args.key, encoding="utf-8-sig"), args.version
+    )
     args.metrics.parent.mkdir(parents=True, exist_ok=True)
     args.metrics.write_text(
         json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -256,10 +332,21 @@ def main() -> None:
     batch.add_argument("--seed", type=int, required=True)
     batch.set_defaults(run=_batch)
 
+    jsonl = commands.add_parser("batch-jsonl", help="monta um lote com fontes em .jsonl (lote v2)")
+    jsonl.add_argument("--source", action="append", required=True, help="nome=caminho[@combinação]")
+    jsonl.add_argument("--exclude", type=Path, action="append", default=[])
+    jsonl.add_argument("--out-dir", type=Path, required=True)
+    jsonl.add_argument("--per-rating", type=int, required=True)
+    jsonl.add_argument("--seed", type=int, required=True)
+    jsonl.add_argument("--suffix", required=True)
+    jsonl.add_argument("--version", required=True)
+    jsonl.set_defaults(run=_batch_jsonl)
+
     summary = commands.add_parser("summarize", help="resume a planilha já pontuada")
     summary.add_argument("--sheet", type=Path, required=True)
     summary.add_argument("--key", type=Path, required=True)
     summary.add_argument("--metrics", type=Path, required=True)
+    summary.add_argument("--version", default=RUBRIC_VERSION)
     summary.set_defaults(run=_summarize)
 
     args = parser.parse_args()
