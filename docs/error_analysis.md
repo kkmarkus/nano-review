@@ -95,8 +95,9 @@ início (1ª = primeira).
   longas, ela está a 40% do texto na s197, a 1% na s146 e a 8% na s154 (94 tokens).
 - A s197 é o caso extremo da leitura 2 da hipótese anterior. Com o prefixo, ela ocupa todo o
   contexto, e o texto termina no meio de uma frase ("Deveria :"). Ela foi, muito provavelmente,
-  cortada pelo limite de geração, sem chegar ao `<eos>`. Só 6 das 1.000 amostras da avaliação chegam
-  a 125 tokens.
+  cortada pelo limite de geração, sem chegar ao `<eos>`. Contando os IDs gerados (e não o texto
+  recodificado), só 3 das 1.000 amostras da avaliação encheram o contexto, e só 1 terminou sem
+  `<eos>`.
 - Por isso, aumentar o `block_size` não resolveria nada. O que quebra o texto é a qualidade de cada
   passo da geração, e não a memória do modelo.
 
