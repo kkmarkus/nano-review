@@ -2,7 +2,8 @@
 
 > Versão 0.5 (fim da Etapa 2: definição da cópia exata corrigida e cautelas de medida acrescentadas
 > pela revisão, antes de medir qualquer amostra do Transformer; os limiares não mudaram). Versão 0.4:
-> fim da Etapa 1, baseline medido e limiares da hipótese fixados antes do Transformer. Este documento fixa o problema e a forma de medir o sucesso
+> fim da Etapa 1, baseline medido e limiares da hipótese fixados antes do Transformer. Versão 0.6:
+> fim da Etapa 3, seção 7.1 com o resultado na validação; nada acima dela mudou. Este documento fixa o problema e a forma de medir o sucesso
 > **antes** de existir modelo, para que a avaliação não seja ajustada depois para caber no resultado.
 
 ## 1. Problema e nicho
@@ -77,7 +78,9 @@ Três cautelas:
    Os dois precisam ser medidos nas **mesmas resenhas**. O treino do Transformer descarta as 2,4% mais
    longas que o `block_size`, e a `val_loss` da Etapa 2 também (`reports/metrics/train.json`). A
    avaliação do H1 não pode descartá-las, porque são justamente as mais difíceis: na Etapa 3, antes de
-   medir o H1, elas passam a ser pontuadas por janela deslizante. **Ainda não implementado.**
+   medir o H1, elas passam a ser pontuadas por janela deslizante. **Implementado na Etapa 3**
+   (`nano_review.evaluation.transformer_eval`, janelas com stride 64). Com o vocabulário final, de
+   8.000 tokens, as descartadas no treino são 1,8%.
 3. **O juiz é um saco de palavras.** O TF-IDF ignora a ordem: uma salada de palavras com "ótimo" e
    "recomendo" parece positiva. O baseline mostrou isso na prática: o unigrama por nota, que não forma
    frase nenhuma, teve coerência **maior** que o trigrama (0,678 contra 0,386). Por isso a coerência
@@ -179,11 +182,30 @@ a usar a referência humana medida antes do dedupe (cautela 4).
 aprendeu a escrever mas não a usar a nota, e o experimento "com/sem condicionamento" da Etapa 3 é o
 lugar de investigar. Qualquer resultado é reportado como saiu, inclusive a reprovação.
 
+### 7.1 Resultado na validação (Etapa 3, 20/11/2026)
+
+Checkpoint final da Etapa 3. O detalhe de cada run está em `docs/experiments.md`. O teste continua
+fechado: o número que vai para o relatório final é o dele, na Etapa 4.
+
+| # | Limiar | Trigrama | Transformer final | Passou? |
+|---|---|---:|---:|---|
+| H1 | Perplexity por palavra ≤ 72 | 90,2 | **69,3** | sim |
+| H2 | Coerência macro ≥ 0,57 | 0,386 | **0,721** | sim |
+| H3 | Amostras ruins na rubrica < trigrama | 85% | **37%** | sim |
+| H4 | Cópia exata ≤ 1% | 0,0% | **0,0%** | sim |
+| H5 | Cópia de 8 palavras ≤ 7% | 0,2% | **3,1%** | sim |
+| H6 | Distinct-2 ≥ 0,59 | 0,71 | **0,68** | sim |
+
+**A hipótese foi confirmada na validação.** A rubrica mostra o limite que sobra: o Transformer ainda
+tem fluência 1 em um terço das amostras (das 33, 12 começam bem e se perdem, 12 já começam
+quebradas, 8 misturam assuntos e 1 entra em loop), e a nota 2, a mais rara no treino, é a pior (`reports/metrics/rubric.json` e
+`docs/error_analysis.md`).
+
 ## 8. Riscos
 
 | Risco | Efeito | Mitigação |
 |---|---|---|
-| Desbalanceamento (nota 5 tem 36,2%, nota 2 só 6,3%; no classificador de 3 classes, o neutro fica com 12,3%) | O modelo aprende a gerar elogio para qualquer nota e vê poucos exemplos de nota 2 | Coerência macro por classe; avaliar amostragem balanceada ou peso por classe na Etapa 3 |
+| Desbalanceamento (nota 5 tem 36,2%, nota 2 só 6,3%; no classificador de 3 classes, o neutro fica com 12,3%) | O modelo aprende a gerar elogio para qualquer nota e vê poucos exemplos de nota 2 | Coerência macro por classe. Peso por classe ou sobreamostragem ficaram como trabalho futuro: a nota 2 é a pior na rubrica (`docs/error_analysis.md`, causa D) |
 | Memorização | O "gerador" vira um copiador de resenhas reais | Métrica de cópia; dedupe antes do split; split por produto |
 | Dados pessoais no texto | Vazar e-mail, telefone ou CPF de clientes reais | Descartar colunas de perfil do avaliador; filtrar o texto por regex na limpeza |
 | CPU limita o tamanho do modelo | Texto pouco fluente | Resenhas curtas, vocabulário BPE pequeno, modelo pequeno; treinar cedo, não só no fim |

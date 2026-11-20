@@ -34,9 +34,10 @@ tokenizer:
   vocab_size: 8000
 
 train:
-  # Contexto máximo (posições de entrada); resenhas maiores saem do treino (2,4%, decidido na 2.1).
+  # Contexto máximo (posições de entrada); resenhas maiores saem do treino (decidido na 2.1). Com o
+  # vocabulário de 8.000, saem 1,8% (reports/metrics/train.json).
   block_size: 128
-  # Modelo pequeno para CPU: ~1,3 milhão de parâmetros.
+  # Configuração final da Etapa 3 (E2 + E3 + E4 + E5): ~5,2 milhões de parâmetros, pequeno para CPU.
   d_model: 256
   n_layers: 4
   n_heads: 4
@@ -45,7 +46,7 @@ train:
   learning_rate: 0.001
   weight_decay: 0.1
   warmup_steps: 200
-  # Primeiro treino curto (~2 épocas, ~13 min em CPU). Treinos maiores são experimentos da Etapa 3.
+  # Run final da Etapa 3: 15.000 passos, ~66 min em CPU. O primeiro treino (Etapa 2) tinha 6.000.
   max_steps: 15000
   eval_every: 250
   # Amostra fixa da validação usada durante o treino; o melhor modelo é medido na validação inteira.

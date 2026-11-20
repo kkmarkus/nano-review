@@ -282,7 +282,8 @@ uma explosão. Se a loss subir nas primeiras avaliações, a run é interrompida
 
 ### Resultado da run final
 
-**As cinco hipóteses medíveis passaram** (o H3, a rubrica humana, vem na sub-etapa 3.4):
+**As cinco hipóteses medidas automaticamente passaram** (o H3, a rubrica humana, está na seção
+seguinte):
 
 | Hipótese | Limiar | Run 0 | Run final | Passou? |
 |---|---|---:|---:|---|
@@ -326,3 +327,92 @@ Parte do achatamento no fim também vem do cosseno, que reduz o LR para 1e-4 no 
   treino antes do dedupe, mas é a medida que vigiar se o modelo crescer.
 - **O que não foi testado (por orçamento):** dropout 0,1 com o modelo grande e mais passos. Pela
   tabela acima, é o próximo experimento mais promissor, e ele entra no relatório como trabalho futuro.
+
+### H3: rubrica humana, às cegas (sub-etapa 3.4)
+
+Lote fixo em `reports/rubric/` com a rubrica v1.0 (`docs/rubric.md`):
+- 20 amostras por nota de cada fonte: trigrama, Transformer final e, como controle, resenhas reais da
+  validação;
+- 300 textos embaralhados, com ids anônimos e semente 2026;
+- o lote foi commitado antes da pontuação, e a chave (`key_v1.csv`) só foi aberta depois.
+
+O resumo está em `reports/metrics/rubric.json`.
+
+| Fonte | Amostras ruins | Fluência | Plausibilidade | Coerência | Repetição |
+|---|---:|---:|---:|---:|---:|
+| Trigrama | **85%** | 1,40 | 1,44 | 2,19 | 2,97 |
+| **Transformer** | **37%** | 2,19 | 2,26 | 2,60 | 2,93 |
+| Resenhas reais (controle) | 3% | 2,95 | 2,91 | 2,86 | 2,98 |
+
+Amostra ruim é a que tem algum critério com nota 1. As colunas de critério são médias de 1 a 3.
+
+**H3 passou:** 37% de amostras ruins contra 85% do trigrama. A diferença, de 48 pontos, tem intervalo
+de 95% de ±12 pontos com 100 amostras por fonte, então não é sorte do sorteio.
+
+- **O controle funciona.** As resenhas reais ficaram com 3% de ruins, o que mostra que a rubrica não
+  pune o jeito informal de escrever do B2W. Os 37% do Transformer vêm, na maior parte, de defeito
+  do modelo, e não da régua (quanto a régua pesa está na ressalva abaixo).
+- **O que reprova o Transformer é a fluência, e não a nota.**
+  - Das 37 amostras ruins, 33 têm fluência 1 e 18 têm plausibilidade 1, e muitas têm as duas.
+  - Só 3 têm coerência 1, e 1 tem repetição 1.
+  - Isso reforça o H2 por outro caminho: quando o texto se entende (fluência 2 ou 3), o tom quase
+    nunca contradiz a nota (3 de 67 amostras com coerência 1). O problema é a forma. Das 33 amostras
+    com fluência 1, 12 começam bem e se perdem, 12 já começam quebradas, 8 misturam assuntos e 1
+    entra em loop. É o limite de um modelo pequeno (5,2
+    M de parâmetros). A falta de contexto foi descartada como causa (ver `docs/error_analysis.md`).
+- **Por nota:** as amostras ruins do Transformer são 35% (nota 1), 65% (2), 45% (3), 15% (4) e 25%
+  (5). As notas 4 e 5 são as mais fáceis, provavelmente porque são as mais frequentes no treino (62%
+  das resenhas).
+  A nota 2, com só 6% do treino, é a pior. É o risco de desbalanceamento do charter, que aparece aqui
+  e não na coerência macro.
+- **Ressalva:** o avaliador é um só, o autor, e aplicou as três fronteiras esclarecidas pela v1.1 da
+  rubrica (fluência, coerência na nota 3 e plausibilidade de textos curtos) com mais rigor do que ela
+  pede. Isso infla os números absolutos. A parte da coerência na nota 3 dá para contar: pela v1.1,
+  deixariam de ser ruins 2 resenhas reais (3% → 1%), 1 amostra do Transformer (37% → 36%) e nenhuma
+  do trigrama. As partes da fluência e da plausibilidade não foram medidas, porque exigiriam
+  repontuar. Elas provavelmente pesam mais no Transformer, cujos erros ficam mais perto da fronteira
+  entre fluência 1 e 2 do que a salada do trigrama. Ou seja, o rigor joga contra o Transformer, e o
+  H3 passou mesmo assim (ver as limitações em `docs/rubric.md`).
+- O `reports/metrics/transformer_eval.json` continua com o H3 "pendente", porque é saída do estágio
+  `evaluate` do DVC, e a rubrica é trabalho humano, fora do pipeline. O resultado do H3 está em
+  `reports/metrics/rubric.json`.
+
+As amostras ruins do Transformer são a matéria-prima da análise de erros (sub-etapa 3.5), em
+`docs/error_analysis.md`.
+
+## Fechamento da Etapa 3
+
+**O que foi entregue:**
+- Nove runs comparáveis (run 0, E0 a E6 e a run final), cada uma com a hipótese escrita antes. Estão
+  no MLflow e exportadas para `reports/experiments/`.
+- O checkpoint final (`final-combinada`, promovido com `dvc exp apply`):
+  - LR 1e-3, `d_model` 256, sem dropout e vocabulário de 8.000 tokens;
+  - 15.000 passos e 5,2 M de parâmetros.
+- **H1 a H6 passaram na validação** (tabela na seção 7.1 do charter). O H3 vem da rubrica humana às
+  cegas, com resenhas reais como controle.
+- A análise de erros das amostras ruins (`docs/error_analysis.md`), com as causas medidas, e não só
+  descritas.
+
+**O que vai para a Etapa 4, decidido com a evidência desta etapa:**
+1. **Inferência com top-k e temperatura menor**, contra a causa A da análise de erros. Os valores são
+   escolhidos **na validação**, com as mesmas métricas (coerência, cópia de 8 palavras e distinct-2,
+   que podem piorar), e só depois o teste é aberto.
+2. **Abrir o teste uma única vez**, com o checkpoint final e os parâmetros de inferência já fixados.
+   Uma nova pontuação humana, se houver, usa a rubrica v1.1.
+3. Na API, um **limite de tamanho** da geração e uma **checagem de repetição** (causas B e E), como
+   mitigação.
+4. **Link público do checkpoint:** hoje o remote do DVC é uma pasta local.
+5. API com `/health`, testes da API e Docker.
+
+**Trabalho futuro, fora do orçamento da etapa:**
+- dropout 0,1 com o modelo grande e mais passos, por causa do afastamento entre treino e validação
+  na run final;
+- condicionamento também pela categoria (causa C);
+- peso por classe ou sobreamostragem da nota 2 (causa D).
+
+**Nota de reprodutibilidade:** depois da run final, o `dataset.py` foi refatorado. O filtro de
+comprimento virou a função `fits_in_context`, com a mesma conta e um teste de fronteira, sem mudar o
+comportamento. A prova: desfazendo só essa refatoração, o arquivo volta exatamente ao hash
+registrado na run final (md5 `38fde6d3…`, 7.447 bytes). O novo hash foi registrado com
+`dvc commit -f train`, sem retreinar. A reprodução limpa da Etapa 5 vai confirmar a equivalência na
+prática.

@@ -18,6 +18,12 @@ produto em português a partir de uma nota de 1 a 5. Projeto integrador individu
   mão (`notebooks/03_forward_backward.ipynb`), Transformer com a atenção escrita à mão, primeiro
   treino e curva (`reports/figures/train_curve.png`) e análise da atenção
   (`notebooks/04_attention.ipynb`).
+- Etapa 3 concluída:
+  - experimentos com a hipótese escrita antes de cada run (`docs/experiments.md`), registrados no
+    MLflow e exportados para `reports/experiments/`;
+  - checkpoint final aprovado em H1 a H6 na validação (`docs/charter.md`, seção 7.1);
+  - rubrica humana às cegas, o H3 (`docs/rubric.md`), e análise de erros
+    (`docs/error_analysis.md`).
 
 ## Como preparar o ambiente (WSL/Ubuntu, Python 3.12)
 
@@ -50,22 +56,22 @@ nano-review/
 │   ├── models/             # bigrama neural e Transformer (atenção à mão)
 │   ├── training/           # laço de treino, checkpoint e export do MLflow
 │   ├── baseline/           # juiz de sentimento e geradores de n-gramas
-│   ├── evaluation/         # métricas, avaliação do Transformer e rubrica
+│   ├── evaluation/         # métricas, avaliação, rubrica e análise de erros
 │   └── reproducibility.py  # set_seed: mesma semente, mesmo resultado
 ├── tests/                  # testes automatizados (make check)
 ├── notebooks/              # EDA, tokenização, forward/backward e atenção
-├── docs/                   # charter, manifesto, rubrica e experimentos
+├── docs/                   # charter, manifesto, rubrica, experimentos, erros
 ├── data/                   # versionada pelo DVC (ver a seção abaixo)
 │   ├── raw/                # CSV original, nunca editado
 │   ├── processed/          # limpo, sem dados pessoais, sem duplicatas
 │   └── curated/            # train, validation e test, split por produto
 ├── models/                 # tokenizador, juiz e Transformer (DVC)
 ├── reports/
-│   ├── metrics/            # métricas geradas pelo pipeline (JSON)
+│   ├── metrics/            # métricas do pipeline e da rubrica (JSON)
 │   ├── figures/            # figuras dos notebooks e do treino
 │   ├── samples/            # amostras geradas pelos modelos
 │   ├── experiments/        # runs do MLflow exportadas (CSV)
-│   └── rubric/             # planilha às cegas e a chave, separada
+│   └── rubric/             # planilha cega, chave e tipos de erro
 ├── configs/                # reservada, vazia por enquanto
 ├── params.yaml             # parâmetros de todos os estágios
 ├── dvc.yaml                # estágios do pipeline
@@ -167,3 +173,28 @@ mlflow ui --host 127.0.0.1 --port 5000                            # painel em ht
   (parâmetros e métricas finais de cada run) e `curves.csv` (as curvas passo a passo). Depois de
   rodar experimentos novos, atualize com
   `python -m nano_review.training.export_runs --out-dir reports/experiments`.
+
+## Rubrica humana e análise de erros (Etapa 3)
+
+A rubrica não é estágio do DVC: a planilha pontuada é trabalho humano, e um `dvc repro` não pode
+regerá-la. Os três passos rodam à mão, nesta ordem:
+
+```bash
+source .venv/bin/activate
+# 1. Monta o lote cego: a planilha sem a origem e, separada, a chave. Recusa sobrescrever um lote.
+python -m nano_review.evaluation.rubric batch --trigram reports/samples/baseline.jsonl \
+    --transformer reports/samples/transformer_eval.jsonl \
+    --validation data/curated/validation.parquet --tokenizer models/tokenizer.json \
+    --block-size 128 --out-dir reports/rubric --per-rating 20 --seed 2026
+# 2. Depois de pontuar reports/rubric/sheet_v1.csv: abre a chave e calcula o H3.
+python -m nano_review.evaluation.rubric summarize --sheet reports/rubric/sheet_v1.csv \
+    --key reports/rubric/key_v1.csv --metrics reports/metrics/rubric.json
+# 3. Mede as causas das amostras ruins, a partir da classificação feita à mão.
+python -m nano_review.evaluation.error_analysis --sheet reports/rubric/sheet_v1.csv \
+    --key reports/rubric/key_v1.csv --types reports/rubric/error_types_v1.csv \
+    --train data/curated/train.parquet --metrics reports/metrics/error_analysis.json
+```
+
+- As regras de pontuação estão em `docs/rubric.md`. O lote v1 foi pontuado com a versão 1.0; a 1.1
+  vale para as avaliações seguintes.
+- A chave (`key_v1.csv`) só é aberta depois que a planilha inteira foi pontuada.
