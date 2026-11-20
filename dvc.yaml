@@ -307,6 +307,66 @@ stages:
       - reports/metrics/inference.json:
           cache: false
 
+  final_eval:
+    # Etapa 4.3: o ÚNICO estágio que lê data/curated/test.parquet. Roda uma vez e depois é
+    # congelado com `dvc freeze final_eval` (docs/final_test.md). Antes de ler o teste, confere
+    # na validação as perplexities já conhecidas e para com erro se não baterem.
+    cmd: >-
+      python -m nano_review.evaluation.final_eval
+      --checkpoint models/transformer.pt
+      --tokenizer models/tokenizer.json
+      --judge models/judge.joblib
+      --train data/curated/train.parquet
+      --validation data/curated/validation.parquet
+      --test data/curated/test.parquet
+      --raw data/raw/B2W-Reviews01.csv
+      --baseline reports/metrics/baseline.json
+      --transformer-eval reports/metrics/transformer_eval.json
+      --metrics reports/metrics/final_eval.json
+      --samples reports/samples/final_eval.jsonl
+      --control reports/samples/test_real_control.jsonl
+      --stride ${evaluate.stride}
+      --max-repeat ${clean.max_repeat}
+      --vocab-min-count ${baseline.vocab_min_count}
+      ${final_eval}
+    deps:
+      - src/nano_review/evaluation/final_eval.py
+      - src/nano_review/evaluation/inference_check.py
+      - src/nano_review/evaluation/decoding.py
+      - src/nano_review/evaluation/error_analysis.py
+      - src/nano_review/evaluation/transformer_eval.py
+      - src/nano_review/evaluation/metrics.py
+      - src/nano_review/inference/generator.py
+      - src/nano_review/inference/sampling.py
+      - src/nano_review/baseline/evaluate.py
+      - src/nano_review/baseline/judge.py
+      - src/nano_review/baseline/ngram.py
+      - src/nano_review/data/clean.py
+      - src/nano_review/models/transformer.py
+      - src/nano_review/tokenization/bpe.py
+      - models/transformer.pt
+      - models/tokenizer.json
+      - models/judge.joblib
+      - data/curated/train.parquet
+      - data/curated/validation.parquet
+      - data/curated/test.parquet
+      - data/raw/B2W-Reviews01.csv
+      - reports/metrics/baseline.json
+      - reports/metrics/transformer_eval.json
+    params:
+      - final_eval
+      - evaluate.stride
+      - clean.max_repeat
+      - baseline.vocab_min_count
+    outs:
+      - reports/samples/final_eval.jsonl:
+          cache: false
+      - reports/samples/test_real_control.jsonl:
+          cache: false
+    metrics:
+      - reports/metrics/final_eval.json:
+          cache: false
+
 # `dvc plots show` desenha a curva de treino e validação direto do CSV do estágio train.
 plots:
   - curva_de_treino:

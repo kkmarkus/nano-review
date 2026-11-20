@@ -83,3 +83,13 @@ inference_check:
   top-ks: [0, 50]
   samples-per-rating: 200
   seed: 42
+
+final_eval:
+  # Etapa 4.3: o teste final, rodado uma única vez (docs/final_test.md). Sementes nunca usadas
+  # antes: a decodificação foi escolhida com a semente 42, e medir nela de novo seria otimista.
+  # Chaves com hífen pelo mesmo motivo da seção decoding.
+  samples-per-rating: 200
+  seed: 2027
+  # Resenhas reais do teste para o controle do lote humano v2.
+  control-per-rating: 10
+  control-seed: 2028
