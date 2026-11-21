@@ -49,7 +49,7 @@ poderia, e não está decorando.
 - **Muda:** `train.learning_rate` 3e-4 → 1e-3.
 - **Por quê:** em subajuste, o problema é chegar longe em poucos passos. Um LR maior dá passos
   maiores. O corte do gradiente em 1,0 e o warmup protegem contra a instabilidade, que é o risco
-  de um LR alto. O tutorial pede pelo menos duas learning rates comparadas.
+  de um LR alto. Comparar pelo menos duas learning rates mostra se o LR é o gargalo do treino.
 - **Previsão:** **melhora** a perplexity. Se a curva oscilar ou a loss subir no começo, o LR passou
   do ponto.
 - **Custo:** ~15 min.
