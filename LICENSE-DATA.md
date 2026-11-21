@@ -15,6 +15,14 @@ deriva do dataset B2W-Reviews01. Esse conteúdo segue a licença do dataset orig
 | Resenhas geradas pelos modelos | `reports/samples/` e as respostas da API | foram produzidas por modelos treinados no dataset |
 | Resenhas reais e planilhas da rubrica | `reports/rubric/` e `reports/samples/test_real_control.jsonl` | contêm resenhas reais do dataset |
 
+Também seguem esta licença:
+- tudo em `reports/`: as métricas, as figuras e os experimentos exportados são calculados a partir
+  dos dados e dos modelos;
+- os trechos de resenhas reais ou geradas citados nos documentos de `docs/` (por exemplo, em
+  `docs/error_analysis.md`) e nas saídas dos notebooks.
+
+O texto dos documentos e o código dos notebooks continuam sob a MIT.
+
 ## O que a licença exige
 
 - **Atribuição (BY):** dar crédito ao dataset e indicar as mudanças feitas. Para isso:

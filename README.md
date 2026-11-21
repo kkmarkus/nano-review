@@ -24,13 +24,18 @@ produto em português a partir de uma nota de 1 a 5. Projeto integrador individu
   - checkpoint final aprovado em H1 a H6 na validação (`docs/charter.md`, seção 7.1);
   - rubrica humana às cegas, o H3 (`docs/rubric.md`), e análise de erros
     (`docs/error_analysis.md`).
+- Etapa 4 concluída:
+  - decodificação escolhida por regra escrita antes e gerador com filtros (`docs/inference.md`);
+  - teste aberto uma única vez, com o pré-registro publicado antes: H1, H2, H4, H5 e H6 passam
+    (`docs/final_test.md`, seção 7.2 do charter), e um lote humano novo leu o texto do produto;
+  - API com página de demonstração, imagem Docker e o checkpoint no Release `v0.1.0`.
 
 ## Licenças
 
 | O quê | Licença |
 |---|---|
-| Código (`src/`, `tests/`, notebooks, `Dockerfile`, `Makefile`, docs) | MIT (`LICENSE`) |
-| Dados, modelos treinados, resenhas geradas e planilhas da rubrica | CC BY-NC-SA 4.0, a mesma do dataset (`LICENSE-DATA.md`) |
+| Código (`src/`, `tests/`, o código dos notebooks, `Dockerfile`, `Makefile`, o texto dos docs) | MIT (`LICENSE`) |
+| Dados, modelos treinados, tudo em `reports/` (resenhas geradas, planilhas da rubrica, métricas e figuras) e os trechos de resenhas citados nos docs e nas saídas dos notebooks | CC BY-NC-SA 4.0, a mesma do dataset (`LICENSE-DATA.md`) |
 
 O código pode ser reaproveitado livremente. O que vem dos dados não pode ter uso comercial e
 precisa citar o B2W-Reviews01 (B2W Digital; Real, Oshiro e Mafra, STIL 2019). As resenhas geradas
@@ -67,13 +72,13 @@ nano-review/
 │   ├── models/             # bigrama neural e Transformer (atenção à mão)
 │   ├── training/           # laço de treino, checkpoint e export do MLflow
 │   ├── baseline/           # juiz de sentimento e geradores de n-gramas
-│   ├── evaluation/         # métricas, avaliação, rubrica e análise de erros
+│   ├── evaluation/         # métricas, avaliação, rubrica, erros, decodificação, teste
 │   ├── inference/          # sorteio (temperatura, top-k) e gerador com filtros
 │   ├── api/                # API FastAPI e a página de demonstração
 │   └── reproducibility.py  # set_seed: mesma semente, mesmo resultado
 ├── tests/                  # testes automatizados (make check)
 ├── notebooks/              # EDA, tokenização, forward/backward e atenção
-├── docs/                   # charter, manifesto, rubrica, experimentos, erros
+├── docs/                   # charter, manifesto, rubrica, experimentos, erros, inferência, teste
 ├── data/                   # versionada pelo DVC (ver a seção abaixo)
 │   ├── raw/                # CSV original, nunca editado
 │   ├── processed/          # limpo, sem dados pessoais, sem duplicatas
@@ -82,7 +87,7 @@ nano-review/
 ├── reports/
 │   ├── metrics/            # métricas do pipeline e da rubrica (JSON)
 │   ├── figures/            # figuras dos notebooks e do treino
-│   ├── samples/            # amostras geradas pelos modelos
+│   ├── samples/            # amostras geradas e o controle real do lote v2
 │   ├── experiments/        # runs do MLflow exportadas (CSV)
 │   └── rubric/             # planilha cega, chave e tipos de erro
 ├── configs/                # reservada, vazia por enquanto
@@ -93,6 +98,8 @@ nano-review/
 ├── requirements-dev.txt    # ferramentas: ruff, mypy, pytest
 ├── requirements-api.txt    # só o que a API importa, para o Docker
 ├── Dockerfile              # imagem da API com o modelo final
+├── LICENSE                 # MIT, para o código
+├── LICENSE-DATA.md         # CC BY-NC-SA 4.0, para dados, modelos e relatórios
 ├── .dockerignore           # o que pode entrar na imagem
 └── Makefile                # make check, docker-build, docker-run
 ```
@@ -157,13 +164,17 @@ dvc metrics show            # funil da limpeza e tamanhos do split
 | `tokenizer` | `train` (a validação só é medida) | `models/tokenizer.json`, `reports/metrics/tokenizer.json` |
 | `train` | `train`, `validation`, tokenizador | `models/transformer.pt`, `reports/metrics/train.json`, `train_log.csv`, `reports/figures/train_curve.png` |
 | `evaluate` | checkpoint, tokenizador, juiz, `train`, `validation` | `reports/metrics/transformer_eval.json` (H1 a H6), `reports/samples/transformer_eval.jsonl` |
+| `decoding` | checkpoint, tokenizador, juiz, `train` | `reports/metrics/decoding.json`, `reports/samples/decoding.jsonl` (Etapa 4.1) |
+| `inference_check` | checkpoint, tokenizador, juiz, `train` | `reports/metrics/inference.json`, `reports/samples/inference.jsonl` (Etapa 4.2) |
+| `final_eval` | tudo acima, mais `test.parquet` | `reports/metrics/final_eval.json`, `reports/samples/final_eval.jsonl`, `reports/samples/test_real_control.jsonl` (Etapa 4.3; rodou uma vez e está congelado, `frozen: true`) |
 
 O treino do Transformer, na configuração final da Etapa 3, leva ~66 minutos em CPU (16 núcleos), e
 a avaliação, ~4 minutos. `dvc plots show` desenha a curva de
 treino e validação a partir de `reports/metrics/train_log.csv`.
 
 O split é **por produto** (nenhum produto aparece em dois conjuntos), com 80/10/10 das resenhas.
-**`test.parquet` não é lido por nada até a Etapa 4**: o teste é aberto uma única vez, no fim.
+**`test.parquet` só é lido pelo estágio `final_eval`**, que rodou uma única vez na Etapa 4.3 e está
+congelado: um `dvc repro` não o roda de novo.
 
 ## Experimentos (Etapa 3)
 
@@ -270,7 +281,8 @@ curl -X POST http://127.0.0.1:8000/generate \
   texto, quando o pedido é bem formado mas o gerador o recusa (um top-k maior que o vocabulário).
 - **503, tentativas esgotadas:** quando as 5 tentativas de um texto caem nos filtros, o pedido
   **inteiro** falha, com os motivos, e as resenhas já geradas são descartadas. Com o padrão, isso não
-  aconteceu em 3.000 resenhas. Longe dele, acontece: em 20 pedidos de uma resenha, 2 falharam com
+  aconteceu em 2.000 resenhas (1.000 na Etapa 4.2 e 1.000 no teste final), nem nas 1.000 com top-k
+  50. Longe dele, acontece: em 20 pedidos de uma resenha, 2 falharam com
   temperatura 0,1 e 1 com temperatura 2,0. Num pedido de várias resenhas, a chance de falha cresce
   com o número delas.
 - **Toda resposta traz `"synthetic": true` e o aviso de que o texto é sintético.** Ele serve para

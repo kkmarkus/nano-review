@@ -121,12 +121,16 @@ números já conhecidos.
 | H6 | Distinct-2 | ≥ 0,59 | 0,681 | **0,679** | sim |
 | H3 | Rubrica humana | < trigrama | 37% contra 85% | não se mede no teste | sim (validação) |
 
+O `reports/metrics/final_eval.json` mostra o H3 como "pendente": o estágio só calcula o que é
+automático, e o H3 é trabalho humano, medido na validação (`reports/metrics/rubric.json`). O arquivo
+não foi editado à mão, porque o estágio está congelado.
+
 As colunas têm fontes diferentes:
 - **H1, teste:** as 12.607 resenhas do teste, 280 delas pontuadas por janela deslizante por serem
   maiores que o contexto.
-- **H2 a H6, teste:** 1.000 resenhas novas do produto, geradas com a decodificação padrão, os filtros
+- **H2, H4, H5 e H6, teste:** 1.000 resenhas novas do produto, geradas com a decodificação padrão, os filtros
   e a semente 2027.
-- **H2 a H6, validação:** o texto cru da Etapa 3, com a semente 42.
+- **H2, H4, H5 e H6, validação:** o texto cru da Etapa 3, com a semente 42.
 
 ### As referências humanas do teste
 

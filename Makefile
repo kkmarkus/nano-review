@@ -20,7 +20,8 @@ format:
 	$(PYTHON) -m ruff format .
 	$(PYTHON) -m ruff check --fix .
 
-# Imagem Docker da API (Etapa 4.5). O modelo precisa estar em models/ (dvc pull) antes do build.
+# Imagem Docker da API (Etapa 4.5). O modelo precisa estar em models/ antes do build: dvc pull
+# ou o download do Release v0.1.0 (README).
 IMAGE ?= nano-review:0.1
 # Porta desta máquina onde a API aparece. Se a 8000 estiver ocupada: make docker-run PORT=8001
 PORT ?= 8000

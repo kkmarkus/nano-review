@@ -52,7 +52,10 @@ mesmos tokens que a antiga nesse caso.
 - **A perplexity (H1).** Ela não depende da decodificação: é a probabilidade que o modelo dá a
   textos reais, e não ao que ele sorteia.
 - **Nada aqui lê a validação nem o teste.** As amostras são geradas pelo modelo; a cópia e o
-  vocabulário vêm do treino; o juiz foi treinado no treino.
+  vocabulário vêm do treino; o juiz foi treinado no treino. O fechamento da Etapa 3
+  (`docs/experiments.md`) previa escolher a decodificação "na validação"; na hora de desenhar a
+  varredura, ficou claro que a escolha nem precisava dela, e o teste continuou intocado do mesmo
+  jeito.
 
 ### Resultado (20/11/2026)
 
@@ -211,6 +214,11 @@ o código atual: as 1.000 amostras saíram idênticas, texto a texto, às gravad
 já é coberta por um teste (a amostragem nova sorteia os mesmos tokens da régua da Etapa 3). O hash
 novo foi registrado com `dvc commit -f decoding`.
 
+## 4.3 O teste final
+
+O teste aberto uma única vez e o lote humano v2 estão em `docs/final_test.md`, com o pré-registro, o
+resultado e a leitura.
+
 ## 4.4 A API
 
 `nano_review.api.app` serve o `ReviewGenerator` por HTTP, com FastAPI. As rotas e os campos estão
@@ -235,7 +243,8 @@ no README. As decisões de desenho:
     só o tipo, o lugar e a mensagem do erro.
 - **O 503 traz os motivos** quando as 5 tentativas de um texto caem nos filtros, e derruba o pedido
   inteiro: o produto não entrega menos resenhas do que as pedidas sem avisar. Com a decodificação
-  padrão, isso não aconteceu nenhuma vez em 3.000 resenhas (4.2 e teste final). Longe do padrão,
+  padrão, isso não aconteceu nenhuma vez em 2.000 resenhas (1.000 na 4.2 e 1.000 no teste final),
+  nem nas 1.000 com top-k 50 da 4.2. Longe do padrão,
   acontece: em 20 pedidos de uma resenha (5 notas × 4 sementes), deram 503 dois com temperatura
   0,1, um com 2,0 e nenhum com 0,5 ou 1,0. A página avisa isso perto das opções avançadas.
 - **A semente usada volta na resposta.** Sem semente, a API sorteia uma e a devolve. O resultado
@@ -318,3 +327,84 @@ avisa a seção 4.2.
 pronta e a derruba em seguida ("connection reset"). Um `curl --retry-connrefused` desiste nesse caso,
 porque a conexão não foi recusada. Para esperar a subida, é preciso repetir o `/health` até ele
 responder.
+
+## 4.6 O checkpoint público e a licença
+
+O remote do DVC é uma pasta local, então quem clona o repositório não tinha como obter o modelo. Desde
+a 4.6, o checkpoint final e o tokenizador estão no Release
+[`v0.1.0`](https://github.com/kkmarkus/nano-review/releases/tag/v0.1.0), num repositório público. O
+README traz o download e a conferência por SHA-256.
+
+**A licença foi esclarecida antes da publicação.** O repositório nasceu com a MIT, que permite uso
+comercial, e o dataset não permite. A solução:
+- o código continua MIT (`LICENSE`, sem nenhuma alteração, para o GitHub seguir mostrando o selo);
+- os dados, os modelos treinados, os textos gerados e as planilhas da rubrica seguem a CC BY-NC-SA
+  4.0, a mesma do dataset (`LICENSE-DATA.md`, com a atribuição exigida);
+- o Release do checkpoint repete a CC BY-NC-SA na descrição.
+
+**Verificação (20/11/2026):**
+
+| Conferência | Resultado |
+|---|---|
+| Repositório sem login | público (200) |
+| Etiqueta `v0.1.0` | aponta para o commit da licença (`bd4e6b2`) |
+| SHA-256 dos dois arquivos, calculado pelo GitHub | iguais aos do README |
+| Licença detectada pelo GitHub | MIT, pelo `LICENSE` |
+| Clone novo + download pelo README + `sha256sum -c` | os dois arquivos `OK` |
+| `make docker-build` no clone novo | todas as camadas vieram do cache: a imagem é idêntica à local |
+| Contêiner do clone novo | `/health` com o hash `9181cbbd…` do DVC, e o `/generate` responde 200 |
+
+Ou seja, qualquer pessoa reconstrói o produto a partir do repositório público, sem DVC e sem os dados.
+
+## Fechamento da Etapa 4
+
+**O que foi entregue:**
+
+| Sub-etapa | Entrega | Onde |
+|---|---|---|
+| 4.1 | Decodificação escolhida por regra escrita antes: temperatura 1, sem top-k | seção 4.1 deste documento, `reports/metrics/decoding.json` |
+| 4.2 | Gerador do produto com validação, filtros e novas tentativas | `nano_review.inference`, `reports/metrics/inference.json` |
+| 4.3 | Teste aberto uma única vez, com o pré-registro publicado antes: H1, H2, H4, H5 e H6 passam; lote humano v2 | `docs/final_test.md`, seção 7.2 do charter |
+| 4.4 | API (FastAPI) com página de demonstração, validação que nunca devolve 500 | `nano_review.api`, README |
+| 4.5 | Imagem Docker com o modelo, bibliotecas nas versões do `.venv`, sem root, com `HEALTHCHECK` | `Dockerfile`, README |
+| 4.6 | Checkpoint público no Release `v0.1.0` e licença dos dados esclarecida | `LICENSE-DATA.md`, README |
+
+As sub-etapas 4.1, 4.2, 4.4 e 4.5 passaram por uma revisão independente antes do commit, e os
+achados de cada uma estão registrados na seção correspondente. O resultado do lote v2 (4.3) entrou na
+revisão da 4.4. A 4.3 foi ensaiada na validação antes de abrir o teste, e a 4.6 foi conferida de
+fora, pelo link público. Uma revisão de coerência entre todos os documentos fechou a etapa.
+
+**O que vai para a Etapa 5, decidido com a evidência desta etapa:**
+1. **Reprodução limpa do zero:** um clone novo, os dados baixados do commit fixado e o pipeline
+   inteiro refeito (`dvc repro`), inclusive o treino. Ela confirma na prática duas equivalências que
+   hoje estão provadas por hash e por teste: a do `dataset.py` (Etapa 3) e a do `sampling.py` (4.2).
+   O treino em CPU pode não repetir o checkpoint bit a bit, então o critério de sucesso (o mesmo hash
+   ou as métricas de validação dentro de uma tolerância) é fixado antes de rodar. O `final_eval`
+   continua congelado: o teste não é aberto de novo.
+2. **Ambiente travado para o projeto inteiro.** Hoje só a imagem Docker tem versões exatas; o
+   `requirements.txt` usa `>=`, e uma instalação daqui a alguns meses pode trazer versões diferentes.
+   A reprodução limpa é o momento de fixá-las.
+3. **Relatório final, com ética e limitações.** As limitações já conhecidas incluem:
+   - um avaliador só na rubrica, e 50 textos por fonte no lote v2;
+   - a fluência: um terço das amostras da validação teve fluência 1 no lote v1, e 12 delas começam
+     bem e se perdem no meio;
+   - a nota 2 como a pior na rubrica (pelo juiz de sentimento, a pior é a 3);
+   - a imagem de ~2 GB;
+   - a concorrência da API, que divide a mesma CPU entre os pedidos;
+   - a cadeia de imports que faz o gerador carregar o juiz de sentimento.
+4. **Roteiro da demonstração ao vivo:**
+   - `make docker-run`, com a porta alternativa à mão se a 8000 estiver ocupada;
+   - a página;
+   - uma semente fixa, para mostrar que o texto se repete;
+   - o `/docs` só com internet.
+5. **Ensaio da defesa.**
+6. **Opcional, se houver tempo:** uma segunda pessoa pontua 20 amostras às cegas, para medir a
+   concordância entre avaliadores (`docs/rubric.md`, limitações).
+
+**Trabalho futuro, fora do escopo do projeto:**
+- dropout 0,1 com o modelo grande e mais passos;
+- condicionamento também pela categoria;
+- peso por classe para a nota 2;
+- uma grade fina de decodificação perto da temperatura 1;
+- um filtro para o loop de frases inteiras;
+- tirar do gerador a dependência do juiz de sentimento.

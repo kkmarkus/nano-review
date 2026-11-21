@@ -216,7 +216,7 @@ O teste foi aberto **uma única vez**, a partir de um commit com o pré-registro
 | H5 | Cópia de 8 palavras ≤ 7% | 3,1% | **1,8%** | sim |
 | H6 | Distinct-2 ≥ 0,59 | 0,681 | **0,679** | sim |
 
-No teste, H2 a H6 foram medidas em 1.000 resenhas novas do produto (decodificação padrão e filtros
+No teste, H2, H4, H5 e H6 foram medidas em 1.000 resenhas novas do produto (decodificação padrão e filtros
 da Etapa 4, semente nunca usada). O H3 compara o Transformer com o trigrama e foi medido só na
 validação.
 

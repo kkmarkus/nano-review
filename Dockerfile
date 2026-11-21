@@ -27,7 +27,7 @@ RUN pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
 COPY requirements-api.txt .
 RUN pip install -r requirements-api.txt
 
-# 3. O modelo final, trazido pelo DVC para models/ antes do build.
+# 3. O modelo final, trazido para models/ antes do build (pelo DVC ou pelo Release v0.1.0).
 COPY models/transformer.pt models/tokenizer.json ./models/
 
 # 4. O pacote, numa instalação normal (não editável). O código-fonte é apagado em seguida: a API
