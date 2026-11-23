@@ -22,10 +22,13 @@ dentro de uma pasta, o `dvc add` dessa pasta falharia com "already tracked by SC
 O remote padrão é uma pasta local fora do repositório (`~/dvc-storage/nano-review`):
 
 ```bash
-mkdir -p ~/dvc-storage/nano-review   # só na primeira vez em uma máquina nova
-dvc pull                             # baixa do remote os dados que o Git aponta
-dvc push                             # envia para o remote os dados novos
+dvc pull   # baixa do remote os dados que o Git aponta
+dvc push   # envia para o remote os dados novos
 ```
+
+Esse remote só existe nesta máquina. Num clone novo, o `dvc pull` falha com "missing cache files";
+o caminho é baixar o CSV da fonte com `dvc update` e gerar o resto com `dvc repro` (README, seção
+"Reproduzir o pipeline").
 
 ### Estágios do pipeline
 

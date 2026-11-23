@@ -23,14 +23,20 @@ source .venv/bin/activate
 pip install --upgrade pip
 
 # O torch (build CPU) vem do índice próprio da PyTorch; instalar antes do resto.
-pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
 
-pip install -r requirements-dev.txt
+# Versões exatas com que os resultados foram obtidos, inclusive as indiretas.
+pip install -r requirements-lock.txt
 make check
 ```
 
 `make check` roda `ruff` (estilo), `mypy --strict` (tipos) e `pytest` (testes), e precisa passar
 antes de qualquer entrega.
+
+As dependências ficam em dois níveis. [`requirements.txt`](requirements.txt) e
+[`requirements-dev.txt`](requirements-dev.txt) dizem do que o projeto depende, só com versões
+mínimas. [`requirements-lock.txt`](requirements-lock.txt) fixa as versões exatas do ambiente que gerou
+os resultados. Depois de mudar uma dependência e ver o `make check` passar, `make lock` o regenera.
 
 ## Rodar a demonstração
 
@@ -101,11 +107,16 @@ flowchart TD
 ```
 
 ```bash
-mkdir -p ~/dvc-storage/nano-review   # remote local; só na primeira vez
-dvc pull                             # baixa os dados e modelos versionados
-dvc repro                            # refaz só o que mudou
-dvc metrics show                     # métricas do pipeline
+dvc update data/raw/B2W-Reviews01.csv.dvc   # baixa o CSV da fonte original (commit fixado)
+md5sum data/raw/B2W-Reviews01.csv           # precisa dar 3d6bb9c7546fe32bb4dff53eaeedafda
+dvc repro                                   # gera processed, curated, tokenizador e modelos
+dvc metrics show                            # métricas do pipeline
 ```
+
+O remote do DVC é uma pasta local desta máquina (`~/dvc-storage/nano-review`), então o `dvc pull`
+só funciona aqui. Num clone novo, o CSV vem da fonte, e o MD5 confere que é o mesmo arquivo do
+[`docs/data_manifest.md`](docs/data_manifest.md). Se o `md5sum` der outro valor, a fonte mudou e os
+resultados não são comparáveis.
 
 - O split é **por produto**: nenhum produto aparece em dois conjuntos.
 - O `test.parquet` só é lido pelo estágio `final_eval`, que rodou uma única vez e está congelado.

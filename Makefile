@@ -1,4 +1,4 @@
-.PHONY: check lint typecheck test format docker-build docker-run
+.PHONY: check lint typecheck test format lock docker-build docker-run
 
 # O Python do .venv, para o make funcionar mesmo sem o ambiente ativado no terminal.
 PYTHON ?= .venv/bin/python
@@ -19,6 +19,12 @@ test:
 format:
 	$(PYTHON) -m ruff format .
 	$(PYTHON) -m ruff check --fix .
+
+# Regenera o requirements-lock.txt a partir do .venv, mantendo o cabeçalho de comentários. Rode
+# depois de mudar uma dependência e ver o make check passar. O torch fica de fora (índice próprio).
+lock:
+	{ grep '^#' requirements-lock.txt; $(PYTHON) -m pip freeze --exclude-editable | grep -v '^torch=='; echo '-e .'; } > requirements-lock.tmp
+	mv requirements-lock.tmp requirements-lock.txt
 
 # Imagem Docker da API (Etapa 4.5). O modelo precisa estar em models/ antes do build: dvc pull
 # ou o download do Release v0.1.0 (README).
