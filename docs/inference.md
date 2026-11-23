@@ -222,7 +222,7 @@ resultado e a leitura.
 ## 4.4 A API
 
 `nano_review.api.app` serve o `ReviewGenerator` por HTTP, com FastAPI. As rotas e os campos estão
-no README. As decisões de desenho:
+em `docs/reference.md`. As decisões de desenho:
 
 - **O modelo carrega uma vez, quando a API sobe** (o `lifespan` do FastAPI), e não a cada pedido.
   Carregar 5 milhões de pesos custa mais que gerar uma resenha. O uvicorn só aceita conexões depois
