@@ -121,7 +121,9 @@ resultados não são comparáveis.
 - O split é **por produto**: nenhum produto aparece em dois conjuntos.
 - O `test.parquet` só é lido pelo estágio `final_eval`, que rodou uma única vez e está congelado.
   Um `dvc repro` não o roda de novo.
-- O treino leva ~66 minutos em CPU (16 núcleos), e a avaliação, ~4 minutos.
+- Em CPU (16 núcleos), o treino leva ~70 min, e o pipeline inteiro num clone novo, ~2 h.
+- Num clone novo, o pipeline reproduz todos os artefatos bit a bit, inclusive o checkpoint
+  ([`docs/reproduction.md`](docs/reproduction.md)).
 
 Estágios, experimentos com MLflow e comandos da rubrica estão em [`docs/reference.md`](docs/reference.md).
 
@@ -136,6 +138,7 @@ Estágios, experimentos com MLflow e comandos da rubrica estão em [`docs/refere
 | [`docs/error_analysis.md`](docs/error_analysis.md) | Causas das amostras ruins |
 | [`docs/inference.md`](docs/inference.md) | Decodificação, gerador com filtros, API, Docker e Release |
 | [`docs/final_test.md`](docs/final_test.md) | Pré-registro e resultado do teste final |
+| [`docs/reproduction.md`](docs/reproduction.md) | Reprodução limpa do zero: resultado, atritos corrigidos e limitações |
 | [`docs/reference.md`](docs/reference.md) | Referência de comandos: DVC, MLflow, rubrica, API e Docker |
 | [`notebooks/`](notebooks/) | EDA, tokenização, forward/backward e atenção |
 

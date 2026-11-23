@@ -55,8 +55,8 @@ dvc plots show     # curva de treino e validação (reports/metrics/train_log.cs
 | `inference_check` | checkpoint, tokenizador, juiz, `train` | [`reports/metrics/inference.json`](../reports/metrics/inference.json), [`reports/samples/inference.jsonl`](../reports/samples/inference.jsonl) (Etapa 4.2) |
 | `final_eval` | tudo acima, mais `test.parquet` | [`reports/metrics/final_eval.json`](../reports/metrics/final_eval.json), [`reports/samples/final_eval.jsonl`](../reports/samples/final_eval.jsonl), [`reports/samples/test_real_control.jsonl`](../reports/samples/test_real_control.jsonl) (Etapa 4.3; rodou uma vez e está congelado, `frozen: true`) |
 
-O treino do Transformer, na configuração final, leva ~66 minutos em CPU (16 núcleos). A avaliação
-leva ~4 minutos.
+Em CPU (16 núcleos), o treino do Transformer leva ~70 min, a avaliação ~4 min e o `decoding` ~31 min.
+O pipeline inteiro, num clone novo, leva ~2 h ([`docs/reproduction.md`](reproduction.md)).
 
 ## 2. Experimentos e MLflow (Etapa 3)
 
