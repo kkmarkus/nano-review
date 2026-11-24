@@ -36,5 +36,7 @@ docker-build:
 	docker build -t $(IMAGE) .
 
 # A porta é publicada só em 127.0.0.1: a API não tem autenticação, então fica visível só nesta máquina.
+# O NANO_REVIEW_PUBLIC_URL faz a API escrever no log o link certo da página, com a porta publicada.
 docker-run:
-	docker run --rm --name nano-review -p 127.0.0.1:$(PORT):8000 $(IMAGE)
+	docker run --rm --name nano-review -p 127.0.0.1:$(PORT):8000 \
+		-e NANO_REVIEW_PUBLIC_URL=http://127.0.0.1:$(PORT) $(IMAGE)

@@ -11,7 +11,8 @@ Rotas:
 O modelo carrega **uma vez**, quando a API sobe, e não a cada pedido: carregar 5 milhões de pesos
 custa mais que gerar uma resenha. Os caminhos vêm das variáveis de ambiente
 ``NANO_REVIEW_CHECKPOINT`` e ``NANO_REVIEW_TOKENIZER`` (o padrão é ``models/...``), para o Docker
-poder apontar para onde o modelo estiver.
+poder apontar para onde o modelo estiver. Se ``NANO_REVIEW_PUBLIC_URL`` existir, a linha "Uvicorn
+running on" do log mostra esse endereço, que é o que o navegador abre (``PublicUrlFilter``).
 
 Uso, na pasta do projeto::
 
@@ -39,6 +40,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from nano_review.inference.generator import MAX_SEED, GenerationError, ReviewGenerator, Settings
 
 LOGGER = logging.getLogger("nano_review.api")
+# O logger em que o uvicorn escreve as mensagens do servidor, inclusive "Uvicorn running on".
+UVICORN_LOGGER = logging.getLogger("uvicorn.error")
 STATIC = Path(__file__).parent / "static"
 DEFAULTS = Settings()
 # A menor temperatura aceita. Abaixo disso, a divisão dos logits estoura o float32 e o sorteio
@@ -130,6 +133,35 @@ def resolved_decoding(
     return used_temperature, None if top_k == 0 else top_k
 
 
+class PublicUrlFilter(logging.Filter):
+    """Troca o endereço da linha "Uvicorn running on ..." pelo endereço publicado.
+
+    Dentro do contêiner, o uvicorn só conhece o próprio endereço (``http://0.0.0.0:8000``), que o
+    navegador não abre. O que vale é a porta publicada pelo Docker, e quem a conhece é quem roda o
+    contêiner (o ``make docker-run``), que a passa em ``NANO_REVIEW_PUBLIC_URL``.
+
+    O filtro depende do formato da mensagem do uvicorn: o texto começa com "Uvicorn running on" e
+    o endereço vem em três valores (protocolo, host e porta). Se uma versão futura mudar isso, o
+    filtro deixa a linha como está, e o teste dele falha.
+    """
+
+    def __init__(self, public_url: str) -> None:
+        super().__init__()
+        self.public_url = public_url.rstrip("/")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.msg
+        is_running_line = isinstance(message, str) and message.startswith("Uvicorn running on")
+        if is_running_line and isinstance(record.args, tuple) and len(record.args) == 3:
+            record.msg = "Uvicorn running on %s (Press CTRL+C to quit)"
+            record.args = (self.public_url,)
+            # O uvicorn guarda uma versão colorida da mesma mensagem, com os três valores antigos.
+            # Sem trocá-la também, um terminal com cores mostraria o endereço antigo, ou daria erro.
+            if hasattr(record, "color_message"):
+                record.color_message = record.msg
+        return True  # nunca esconde uma mensagem, só reescreve
+
+
 def validation_error(request: Request, error: Exception) -> JSONResponse:
     """O 422 do pydantic, sem ecoar o valor recebido.
 
@@ -152,7 +184,15 @@ def create_app(load: Callable[[], Loaded] = load_from_env) -> FastAPI:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s: %(message)s")
         state["loaded"] = load()
         LOGGER.info("modelo carregado: %s", state["loaded"].checkpoint_md5)
+        # O lifespan roda antes de o uvicorn escrever "Uvicorn running on", então o filtro já
+        # está no lugar quando a linha sai.
+        public_url = os.environ.get("NANO_REVIEW_PUBLIC_URL")
+        url_filter = PublicUrlFilter(public_url) if public_url else None
+        if url_filter:
+            UVICORN_LOGGER.addFilter(url_filter)
         yield
+        if url_filter:
+            UVICORN_LOGGER.removeFilter(url_filter)
         state.clear()
 
     app = FastAPI(

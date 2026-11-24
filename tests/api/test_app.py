@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from collections.abc import Iterator
 from dataclasses import asdict
 from pathlib import Path
@@ -12,7 +13,14 @@ import torch
 from fastapi.testclient import TestClient
 from tokenizers import Tokenizer
 
-from nano_review.api.app import NOTICE, Loaded, create_app, load_from_env, resolved_decoding
+from nano_review.api.app import (
+    NOTICE,
+    Loaded,
+    PublicUrlFilter,
+    create_app,
+    load_from_env,
+    resolved_decoding,
+)
 from nano_review.inference.generator import GenerationError, ReviewGenerator, Settings
 from nano_review.models.transformer import TransformerConfig, TransformerLanguageModel
 from nano_review.tokenization.bpe import train_tokenizer
@@ -62,6 +70,56 @@ def test_without_the_model_loaded_health_and_generate_are_503(tokenizer: Tokeniz
     unloaded = TestClient(create_app(lambda: _loaded(tokenizer)))
     assert unloaded.get("/health").status_code == 503
     assert unloaded.post("/generate", json={"rating": 3}).status_code == 503
+
+
+def _uvicorn_running_record() -> logging.LogRecord:
+    """A linha que o uvicorn escreve ao subir, no mesmo formato do ``uvicorn/server.py``."""
+    record = logging.LogRecord(
+        "uvicorn.error",
+        logging.INFO,
+        "server.py",
+        0,
+        "Uvicorn running on %s://%s:%d (Press CTRL+C to quit)",
+        ("http", "0.0.0.0", 8000),
+        None,
+    )
+    record.color_message = "Uvicorn running on \x1b[1m%s://%s:%d\x1b[0m (Press CTRL+C to quit)"
+    return record
+
+
+@pytest.mark.parametrize("public_url", ["http://127.0.0.1:8000", "http://127.0.0.1:8001/"])
+def test_the_uvicorn_line_shows_the_published_address(public_url: str) -> None:
+    record = _uvicorn_running_record()
+    assert PublicUrlFilter(public_url).filter(record) is True
+    expected = f"Uvicorn running on {public_url.rstrip('/')} (Press CTRL+C to quit)"
+    assert record.getMessage() == expected
+    # A versão colorida também precisa mostrar o endereço novo, sem sobrar formato antigo.
+    # O LogRecord não declara color_message (é um extra do uvicorn): por isso o __dict__.
+    assert record.__dict__["color_message"] % record.args == expected
+
+
+def test_the_filter_leaves_other_messages_alone() -> None:
+    record = logging.LogRecord(
+        "uvicorn.error", logging.INFO, "server.py", 0, "Waiting for application startup.", (), None
+    )
+    assert PublicUrlFilter("http://127.0.0.1:8000").filter(record) is True
+    assert record.getMessage() == "Waiting for application startup."
+
+
+@pytest.mark.parametrize("public_url", ["http://127.0.0.1:8000", None])
+def test_the_filter_is_installed_only_while_the_app_runs_with_the_variable(
+    tokenizer: Tokenizer, monkeypatch: pytest.MonkeyPatch, public_url: str | None
+) -> None:
+    if public_url is None:
+        monkeypatch.delenv("NANO_REVIEW_PUBLIC_URL", raising=False)
+    else:
+        monkeypatch.setenv("NANO_REVIEW_PUBLIC_URL", public_url)
+    uvicorn_logger = logging.getLogger("uvicorn.error")
+    with TestClient(create_app(lambda: _loaded(tokenizer))):
+        installed = [f for f in uvicorn_logger.filters if isinstance(f, PublicUrlFilter)]
+        assert len(installed) == (0 if public_url is None else 1)
+    # Ao desligar, o filtro sai: sem isso, cada subida somaria mais um.
+    assert not [f for f in uvicorn_logger.filters if isinstance(f, PublicUrlFilter)]
 
 
 def test_generate_returns_n_reviews_for_the_rating(client: TestClient) -> None:

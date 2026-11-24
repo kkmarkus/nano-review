@@ -11,8 +11,8 @@ remote.
 
 ```text
 data/raw/        download original (GitHub da B2W, via `dvc import-url`); nunca editar à mão
-data/processed/  limpo, deduplicado, sem dados pessoais
-data/curated/    splits prontos (train, validation, test), feitos por produto
+data/silver/     limpo, deduplicado, sem dados pessoais
+data/gold/       splits prontos (train, validation, test), feitos por produto
 models/          tokenizador, juiz de sentimento e Transformer
 ```
 
@@ -32,7 +32,7 @@ o caminho é baixar o CSV da fonte com `dvc update` e gerar o resto com `dvc rep
 
 ### Estágios do pipeline
 
-`data/processed` e `data/curated` não são baixados nem editados: o pipeline do [`dvc.yaml`](../dvc.yaml) os
+`data/silver` e `data/gold` não são baixados nem editados: o pipeline do [`dvc.yaml`](../dvc.yaml) os
 **gera**, com os parâmetros do [`params.yaml`](../params.yaml). O DVC só refaz um estágio quando a entrada, o código
 ou um parâmetro dele muda.
 
@@ -44,8 +44,8 @@ dvc plots show     # curva de treino e validação (reports/metrics/train_log.cs
 
 | Estágio | Entrada | Saída |
 |---|---|---|
-| `clean` | `data/raw/B2W-Reviews01.csv` | `data/processed/reviews.parquet`, [`reports/metrics/cleaning.json`](../reports/metrics/cleaning.json) |
-| `split` | `data/processed/reviews.parquet` | `data/curated/{train,validation,test}.parquet`, [`reports/metrics/split.json`](../reports/metrics/split.json) |
+| `clean` | `data/raw/B2W-Reviews01.csv` | `data/silver/reviews.parquet`, [`reports/metrics/cleaning.json`](../reports/metrics/cleaning.json) |
+| `split` | `data/silver/reviews.parquet` | `data/gold/{train,validation,test}.parquet`, [`reports/metrics/split.json`](../reports/metrics/split.json) |
 | `judge` | `train`, `validation` | `models/judge.joblib`, [`reports/metrics/judge.json`](../reports/metrics/judge.json) |
 | `baseline` | `train`, `validation`, juiz | [`reports/metrics/baseline.json`](../reports/metrics/baseline.json), [`reports/samples/baseline.jsonl`](../reports/samples/baseline.jsonl) |
 | `tokenizer` | `train` (a validação só é medida) | `models/tokenizer.json`, [`reports/metrics/tokenizer.json`](../reports/metrics/tokenizer.json) |
@@ -97,7 +97,7 @@ depois que a planilha inteira foi pontuada.
 # 1. Monta o lote cego: a planilha sem a origem e, separada, a chave. Recusa sobrescrever um lote.
 python -m nano_review.evaluation.rubric batch --trigram reports/samples/baseline.jsonl \
     --transformer reports/samples/transformer_eval.jsonl \
-    --validation data/curated/validation.parquet --tokenizer models/tokenizer.json \
+    --validation data/gold/validation.parquet --tokenizer models/tokenizer.json \
     --block-size 128 --out-dir reports/rubric --per-rating 20 --seed 2026
 # 2. Depois de pontuar reports/rubric/sheet_v1.csv: abre a chave e calcula o H3.
 python -m nano_review.evaluation.rubric summarize --sheet reports/rubric/sheet_v1.csv \
@@ -105,7 +105,7 @@ python -m nano_review.evaluation.rubric summarize --sheet reports/rubric/sheet_v
 # 3. Mede as causas das amostras ruins, a partir da classificação feita à mão.
 python -m nano_review.evaluation.error_analysis --sheet reports/rubric/sheet_v1.csv \
     --key reports/rubric/key_v1.csv --types reports/rubric/error_types_v1.csv \
-    --train data/curated/train.parquet --metrics reports/metrics/error_analysis.json
+    --train data/gold/train.parquet --metrics reports/metrics/error_analysis.json
 ```
 
 ### Lote v2 (Etapa 4.3, rubrica 1.1)
@@ -179,6 +179,10 @@ curl -X POST http://127.0.0.1:8000/generate \
 A imagem traz a API, a página e o modelo final, e roda em qualquer máquina com Docker, sem `.venv`,
 DVC nem dados. Os comandos de build e execução estão no README. Detalhes:
 
+- **O link da página:** dentro do contêiner, o uvicorn só conhece o próprio endereço
+  (`http://0.0.0.0:8000`), que o navegador não abre. O `make docker-run` passa
+  `NANO_REVIEW_PUBLIC_URL` com a porta publicada, e a API troca o endereço da linha do log:
+  `Uvicorn running on http://127.0.0.1:8000`. Com `PORT=8001`, o link sai com `:8001`.
 - **Porta ocupada:** se a 8000 já estiver em uso (por exemplo, pela API rodando no `.venv`), pare o
   outro processo ou use `make docker-run PORT=8001`. Para parar o contêiner: `Ctrl+C` ou
   `docker stop nano-review`.
@@ -214,7 +218,7 @@ nano-review/
 ├── tests/                  # testes automatizados (make check)
 ├── notebooks/              # EDA, tokenização, forward/backward e atenção
 ├── docs/                   # charter, manifesto, rubrica, experimentos, erros, inferência, teste
-├── data/                   # raw, processed e curated (DVC)
+├── data/                   # raw, silver e gold (DVC)
 ├── models/                 # tokenizador, juiz e Transformer (DVC)
 ├── reports/
 │   ├── metrics/            # métricas do pipeline e da rubrica (JSON)
