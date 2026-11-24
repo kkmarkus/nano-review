@@ -93,8 +93,8 @@ CSV bruto, com os parâmetros do [`params.yaml`](params.yaml):
 ```mermaid
 flowchart TD
     src["Fonte: GitHub da B2W<br/>(commit fixado)"] -->|"dvc import-url"| raw["RAW<br/>B2W-Reviews01.csv"]
-    raw -->|"clean: tira dados pessoais,<br/>normaliza, deduplica"| proc["PROCESSED<br/>reviews.parquet"]
-    proc -->|"split: por produto, 80/10/10"| cur["CURATED<br/>train · validation · test"]
+    raw -->|"clean: tira dados pessoais,<br/>normaliza, deduplica"| proc["SILVER<br/>reviews.parquet"]
+    proc -->|"split: por produto, 80/10/10"| cur["GOLD<br/>train · validation · test"]
     cur -->|"train"| tok["tokenizer<br/>BPE treinado só no treino"]
     tok --> ds["Dataset / DataLoader<br/>#lt;bos#gt; #lt;nota_k#gt; texto #lt;eos#gt;"]
     ds -->|"train: forward, loss,<br/>backward, AdamW"| ckpt["models/transformer.pt<br/>(melhor validação)"]
@@ -109,7 +109,7 @@ flowchart TD
 ```bash
 dvc update data/raw/B2W-Reviews01.csv.dvc   # baixa o CSV da fonte original (commit fixado)
 md5sum data/raw/B2W-Reviews01.csv           # precisa dar 3d6bb9c7546fe32bb4dff53eaeedafda
-dvc repro                                   # gera processed, curated, tokenizador e modelos
+dvc repro                                   # gera silver, gold, tokenizador e modelos
 dvc metrics show                            # métricas do pipeline
 ```
 
@@ -131,6 +131,7 @@ Estágios, experimentos com MLflow e comandos da rubrica estão em [`docs/refere
 
 | Documento | Conteúdo |
 |---|---|
+| [`docs/report.md`](docs/report.md) | **Relatório final:** dados, IA, MLOps, ética e limitações, com links para o detalhe |
 | [`docs/charter.md`](docs/charter.md) | Problema, usuário, métricas, hipóteses H1 a H6 e limiares, riscos e ética |
 | [`docs/data_manifest.md`](docs/data_manifest.md) | Fonte, licença, colunas, data do download e hash dos dados |
 | [`docs/experiments.md`](docs/experiments.md) | Experimentos da Etapa 3, cada um com a hipótese escrita antes |
