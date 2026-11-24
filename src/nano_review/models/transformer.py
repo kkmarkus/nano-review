@@ -154,8 +154,8 @@ class TransformerLanguageModel(nn.Module):
         self.final_norm = nn.LayerNorm(config.d_model)
         self.head = nn.Linear(config.d_model, config.vocab_size, bias=False)
         # Pesos amarrados: a camada de saída reutiliza a tabela de embedding. Ler o token e
-        # escrevê-lo usam a mesma representação, e o modelo economiza V x C parâmetros (com
-        # V = 4.000 e C = 128, mais de meio milhão), o que pesa num modelo pequeno.
+        # escrevê-lo usam a mesma representação, e o modelo economiza V x C parâmetros (no modelo
+        # final, 8.000 x 256 = 2.048.000, quase 40% dos 5,2 milhões), o que pesa num modelo pequeno.
         self.head.weight = self.token_embedding.weight
         self.apply(self._init_weights)
 

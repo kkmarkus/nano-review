@@ -403,14 +403,14 @@ O código fica no Git, com um commit por entrega e mensagens que dizem o que mud
   dependências, inclusive as indiretas. O `requirements.txt` diz do que o projeto depende, e o lock
   diz com quais versões os números foram obtidos.
 - **Porta de qualidade:** o `make check` roda `ruff` (estilo), `mypy --strict` (tipos) e `pytest`, e
-  precisa passar antes de qualquer commit. São **308 testes**:
+  precisa passar antes de qualquer commit. São **313 testes**:
 
 | Área | Testes | Exemplos do que é testado |
 |---|---:|---|
 | `data` | 91 | Cada regra de limpeza, os padrões de dado pessoal (inclusive os falsos positivos), o split sem produto repetido, o DataLoader |
 | `evaluation` | 74 | Métricas de coerência, cópia e distinct-n, a rubrica cega, a regra de escolha da decodificação |
 | `inference` | 41 | Temperatura, top-k, os filtros e as novas tentativas do gerador |
-| `api` | 31 | Rotas, validação do pedido, 422 e 503, e nenhum caso que devolva 500 |
+| `api` | 36 | Rotas, validação do pedido, 422 e 503, nenhum caso que devolva 500, e o link certo no log do Docker |
 | `baseline` | 30 | Trigrama, unigrama e o juiz de sentimento |
 | `models` | 14 | Shapes do forward, a máscara causal (o futuro não muda o passado) e o gradiente calculado à mão igual ao do `backward()` |
 | `tokenization` | 14 | O BPE e o BPE didático |

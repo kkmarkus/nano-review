@@ -230,6 +230,8 @@ def test_the_demo_page_is_served(client: TestClient) -> None:
     assert "/static/style.css" in response.text and "/static/app.js" in response.text
     assert "<style>" not in response.text and "style=" not in response.text
     assert "<script>" not in response.text  # só o <script src=...>, sem código no HTML
+    # Ícone vazio declarado: o navegador não pede /favicon.ico, e o log não ganha um 404 por visita.
+    assert '<link rel="icon" href="data:,">' in response.text
 
 
 def test_the_page_css_and_js_are_served(client: TestClient) -> None:
