@@ -18,7 +18,7 @@
 ```bash
 python -m nano_review.evaluation.error_analysis --sheet reports/rubric/sheet_v1.csv \
     --key reports/rubric/key_v1.csv --types reports/rubric/error_types_v1.csv \
-    --train data/curated/train.parquet --metrics reports/metrics/error_analysis.json
+    --train data/gold/train.parquet --metrics reports/metrics/error_analysis.json
 ```
 
 ## Tipos de erro

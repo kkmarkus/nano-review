@@ -39,7 +39,7 @@ lido com `sep=";"`, o pandas encontra uma única coluna. Vale o que o arquivo mo
   repositório original da B2W Digital.
   - **BY:** dar crédito à B2W Digital e citar o artigo abaixo.
   - **NC:** só uso não comercial. O nano-review é um projeto acadêmico.
-  - **SA:** qualquer dado derivado (por exemplo `data/processed` e `data/curated`) segue a mesma licença.
+  - **SA:** qualquer dado derivado (por exemplo `data/silver` e `data/gold`) segue a mesma licença.
 - **Espelho no Hugging Face** (<https://huggingface.co/datasets/ruanchaves/b2w-reviews01>): o card de lá
   declara CC BY 4.0. Um espelho não pode afrouxar a licença do original, então **vale a CC BY-NC-SA 4.0**.
   O espelho serve só como referência para o esquema das colunas.
@@ -124,6 +124,6 @@ um** (inferência online), mas o modelo que ela carrega continua sendo treinado 
 | Camada | Formato | Por quê |
 |---|---|---|
 | `data/raw` | CSV (49 MB) | É o formato publicado pela fonte. Fica intocado, para conferência pelo hash. |
-| `data/processed` | Parquet (11,5 MB, só as 4 colunas que o projeto usa) | Colunar, tipado e comprimido. Lê só as colunas pedidas e preserva os tipos (a nota continua inteira, e o texto, texto), sem as ambiguidades de separador e de aspas do CSV. |
-| `data/curated` | Parquet (train, validation, test) | O mesmo motivo, e cada split é um arquivo separado: o `test.parquet` fica fechado, sem ser lido junto com os outros. |
+| `data/silver` | Parquet (11,5 MB, só as 4 colunas que o projeto usa) | Colunar, tipado e comprimido. Lê só as colunas pedidas e preserva os tipos (a nota continua inteira, e o texto, texto), sem as ambiguidades de separador e de aspas do CSV. |
+| `data/gold` | Parquet (train, validation, test) | O mesmo motivo, e cada split é um arquivo separado: o `test.parquet` fica fechado, sem ser lido junto com os outros. |
 | `models/` | `.pt` (PyTorch), `.json` (tokenizador), `.joblib` (juiz) | O formato nativo de cada biblioteca, carregado pela mesma biblioteca que salvou. |

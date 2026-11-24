@@ -19,7 +19,7 @@ Uso (normalmente pelo ``dvc repro inference_check``)::
 
     python -m nano_review.evaluation.inference_check --checkpoint models/transformer.pt \\
         --tokenizer models/tokenizer.json --judge models/judge.joblib \\
-        --train data/curated/train.parquet --metrics reports/metrics/inference.json \\
+        --train data/gold/train.parquet --metrics reports/metrics/inference.json \\
         --samples reports/samples/inference.jsonl --top-ks 0 50 --samples-per-rating 200 \\
         --seed 42
 """

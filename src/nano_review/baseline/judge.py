@@ -7,8 +7,8 @@ conseguimos medir: o gerador não pode parecer mais coerente do que o juiz é ca
 
 Uso (normalmente pelo ``dvc repro``, que lê os parâmetros de ``params.yaml``)::
 
-    python -m nano_review.baseline.judge --train data/curated/train.parquet \\
-        --validation data/curated/validation.parquet --model models/judge.joblib \\
+    python -m nano_review.baseline.judge --train data/gold/train.parquet \\
+        --validation data/gold/validation.parquet --model models/judge.joblib \\
         --metrics reports/metrics/judge.json --ngram-max 2 --min-df 2 --c 1.0
 """
 

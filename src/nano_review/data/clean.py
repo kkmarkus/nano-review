@@ -1,4 +1,4 @@
-"""Limpeza do B2W-Reviews01: de ``data/raw`` para ``data/processed``.
+"""Limpeza do B2W-Reviews01: de ``data/raw`` para ``data/silver``.
 
 Cada regra é uma função pequena e pura, para poder ser testada sozinha. As regras vêm da tabela de
 decisões no fim de ``notebooks/01_eda.ipynb``; o número entre parênteses nos comentários é o da
@@ -7,7 +7,7 @@ decisão lá.
 Uso (normalmente pelo ``dvc repro``, que lê os parâmetros de ``params.yaml``)::
 
     python -m nano_review.data.clean --input data/raw/B2W-Reviews01.csv \\
-        --output data/processed/reviews.parquet --metrics reports/metrics/cleaning.json
+        --output data/silver/reviews.parquet --metrics reports/metrics/cleaning.json
 """
 
 from __future__ import annotations
@@ -191,13 +191,13 @@ def main() -> None:
 
     # product_id como texto: é identificador, e lido como número perderia zeros à esquerda.
     raw = pd.read_csv(args.input, sep=",", dtype={"product_id": str}, low_memory=False)
-    processed, removed = clean_reviews(raw, args.max_repeat)
+    cleaned, removed = clean_reviews(raw, args.max_repeat)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    processed.to_parquet(args.output, index=False)
+    cleaned.to_parquet(args.output, index=False)
 
     # O funil linha a linha é a evidência de que nada sumiu sem motivo.
-    metrics = {"rows_raw": len(raw), "removed": removed, "rows_processed": len(processed)}
+    metrics = {"rows_raw": len(raw), "removed": removed, "rows_processed": len(cleaned)}
     args.metrics.parent.mkdir(parents=True, exist_ok=True)
     args.metrics.write_text(json.dumps(metrics, indent=2, ensure_ascii=False) + "\n")
     print(json.dumps(metrics, indent=2, ensure_ascii=False))

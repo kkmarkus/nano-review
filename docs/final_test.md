@@ -46,7 +46,7 @@ número de teste só vale se o código que o mede reproduz o que já se sabe.
 
 ## Uma única vez
 
-- `final_eval` é o **único** código do projeto que lê `data/curated/test.parquet`.
+- `final_eval` é o **único** código do projeto que lê `data/gold/test.parquet`.
 - Depois da execução, o estágio é **congelado** (`dvc freeze final_eval`). Um `dvc repro` não o roda
   de novo, nem se uma dependência mudar.
 - **Se alguma hipótese reprovar no teste, o resultado é reportado como saiu.** Não há segunda

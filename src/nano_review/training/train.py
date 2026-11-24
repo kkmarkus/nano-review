@@ -20,8 +20,8 @@ O que este script acrescenta ao laço do notebook ``03_forward_backward.ipynb``,
 
 Uso (normalmente pelo ``dvc repro``, que lê os parâmetros de ``params.yaml``)::
 
-    python -m nano_review.training.train --train data/curated/train.parquet \\
-        --validation data/curated/validation.parquet --tokenizer models/tokenizer.json \\
+    python -m nano_review.training.train --train data/gold/train.parquet \\
+        --validation data/gold/validation.parquet --tokenizer models/tokenizer.json \\
         --checkpoint models/transformer.pt --metrics reports/metrics/train.json \\
         --log reports/metrics/train_log.csv --figure reports/figures/train_curve.png \\
         --samples reports/samples/transformer_first.jsonl [hiperparâmetros...]

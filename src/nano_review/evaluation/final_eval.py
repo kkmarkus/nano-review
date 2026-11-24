@@ -1,4 +1,4 @@
-"""Teste final (Etapa 4.3): o único código do projeto que lê ``data/curated/test.parquet``.
+"""Teste final (Etapa 4.3): o único código do projeto que lê ``data/gold/test.parquet``.
 
 Segue o pré-registro de ``docs/final_test.md``, escrito e commitado antes da execução:
 
@@ -18,8 +18,8 @@ Uso (normalmente pelo ``dvc repro final_eval``, uma única vez)::
 
     python -m nano_review.evaluation.final_eval --checkpoint models/transformer.pt \\
         --tokenizer models/tokenizer.json --judge models/judge.joblib \\
-        --train data/curated/train.parquet --validation data/curated/validation.parquet \\
-        --test data/curated/test.parquet --raw data/raw/B2W-Reviews01.csv \\
+        --train data/gold/train.parquet --validation data/gold/validation.parquet \\
+        --test data/gold/test.parquet --raw data/raw/B2W-Reviews01.csv \\
         --baseline reports/metrics/baseline.json \\
         --transformer-eval reports/metrics/transformer_eval.json \\
         --metrics reports/metrics/final_eval.json --samples reports/samples/final_eval.jsonl \\

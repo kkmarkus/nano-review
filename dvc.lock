@@ -2,7 +2,7 @@ schema: '2.0'
 stages:
   clean:
     cmd: python -m nano_review.data.clean --input data/raw/B2W-Reviews01.csv 
-      --output data/processed/reviews.parquet --metrics 
+      --output data/silver/reviews.parquet --metrics 
       reports/metrics/cleaning.json --max-repeat 3
     deps:
     - path: data/raw/B2W-Reviews01.csv
@@ -11,13 +11,13 @@ stages:
       size: 49453175
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 66b582e16b7a2d17bfd464bdd022f39b
-      size: 10165
+      md5: 82a75c915ac09e9691de78706adb645a
+      size: 10153
     params:
       params.yaml:
         clean.max_repeat: 3
     outs:
-    - path: data/processed/reviews.parquet
+    - path: data/silver/reviews.parquet
       hash: md5
       md5: e5118bbe446d48e5695c0eb9479f36d9
       size: 11503674
@@ -26,33 +26,33 @@ stages:
       md5: e8e2822a76bd2546e12b4357b179b152
       size: 219
   split:
-    cmd: python -m nano_review.data.split --input data/processed/reviews.parquet
-      --output-dir data/curated --metrics reports/metrics/split.json 
+    cmd: python -m nano_review.data.split --input data/silver/reviews.parquet 
+      --output-dir data/gold --metrics reports/metrics/split.json 
       --validation-fraction 0.1 --test-fraction 0.1 --seed 42
     deps:
-    - path: data/processed/reviews.parquet
+    - path: data/silver/reviews.parquet
       hash: md5
       md5: e5118bbe446d48e5695c0eb9479f36d9
       size: 11503674
     - path: src/nano_review/data/split.py
       hash: md5
-      md5: 707e5db672a4103ee04d70d451809437
-      size: 4942
+      md5: dab8e5ab44cdf93c39ec80f676b95ddc
+      size: 4930
     params:
       params.yaml:
         split.seed: 42
         split.test_fraction: 0.1
         split.validation_fraction: 0.1
     outs:
-    - path: data/curated/test.parquet
+    - path: data/gold/test.parquet
       hash: md5
       md5: b5a17c2dd23678c1c55a424e3408cac2
       size: 1180621
-    - path: data/curated/train.parquet
+    - path: data/gold/train.parquet
       hash: md5
       md5: de6f177a019d0d3640803491421ed96b
       size: 9168996
-    - path: data/curated/validation.parquet
+    - path: data/gold/validation.parquet
       hash: md5
       md5: b91faa31a10db300400d8c65b4329863
       size: 1188736
@@ -61,26 +61,26 @@ stages:
       md5: 433a083ac593b4e3b2e8228dc72bb34e
       size: 642
   judge:
-    cmd: python -m nano_review.baseline.judge --train data/curated/train.parquet
-      --validation data/curated/validation.parquet --model models/judge.joblib 
+    cmd: python -m nano_review.baseline.judge --train data/gold/train.parquet 
+      --validation data/gold/validation.parquet --model models/judge.joblib 
       --metrics reports/metrics/judge.json --ngram-max 2 --min-df 2 --c 1.0
     deps:
-    - path: data/curated/train.parquet
+    - path: data/gold/train.parquet
       hash: md5
       md5: de6f177a019d0d3640803491421ed96b
       size: 9168996
-    - path: data/curated/validation.parquet
+    - path: data/gold/validation.parquet
       hash: md5
       md5: b91faa31a10db300400d8c65b4329863
       size: 1188736
     - path: src/nano_review/baseline/judge.py
       hash: md5
-      md5: 14f1f61ad192b6021e78489d4455bf7a
-      size: 6966
+      md5: 7e18e59a94fca126e059114b5aed7f1b
+      size: 6960
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 66b582e16b7a2d17bfd464bdd022f39b
-      size: 10165
+      md5: 82a75c915ac09e9691de78706adb645a
+      size: 10153
     params:
       params.yaml:
         judge.c: 1.0
@@ -96,18 +96,18 @@ stages:
       md5: b0f0a9e626083e9b2bbd8fa81a1fb774
       size: 750
   baseline:
-    cmd: python -m nano_review.baseline.evaluate --train 
-      data/curated/train.parquet --validation data/curated/validation.parquet 
-      --judge models/judge.joblib --metrics reports/metrics/baseline.json 
-      --samples reports/samples/baseline.jsonl --raw data/raw/B2W-Reviews01.csv 
+    cmd: python -m nano_review.baseline.evaluate --train data/gold/train.parquet
+      --validation data/gold/validation.parquet --judge models/judge.joblib 
+      --metrics reports/metrics/baseline.json --samples 
+      reports/samples/baseline.jsonl --raw data/raw/B2W-Reviews01.csv 
       --max-repeat 3 --vocab-min-count 2 --tuning-fraction 0.1 
       --samples-per-rating 200 --max-tokens 100 --seed 42
     deps:
-    - path: data/curated/train.parquet
+    - path: data/gold/train.parquet
       hash: md5
       md5: de6f177a019d0d3640803491421ed96b
       size: 9168996
-    - path: data/curated/validation.parquet
+    - path: data/gold/validation.parquet
       hash: md5
       md5: b91faa31a10db300400d8c65b4329863
       size: 1188736
@@ -121,20 +121,20 @@ stages:
       size: 8492324
     - path: src/nano_review/baseline/evaluate.py
       hash: md5
-      md5: ab7012ae758c874d1d5c513df03a0fc0
-      size: 10403
+      md5: 3da172f778c9d728d4fddb4688cd9d51
+      size: 10397
     - path: src/nano_review/baseline/judge.py
       hash: md5
-      md5: 14f1f61ad192b6021e78489d4455bf7a
-      size: 6966
+      md5: 7e18e59a94fca126e059114b5aed7f1b
+      size: 6960
     - path: src/nano_review/baseline/ngram.py
       hash: md5
       md5: cddc0c7a75494277352399d4865d52a2
       size: 11791
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 66b582e16b7a2d17bfd464bdd022f39b
-      size: 10165
+      md5: 82a75c915ac09e9691de78706adb645a
+      size: 10153
     - path: src/nano_review/evaluation/metrics.py
       hash: md5
       md5: bd92df8ff96a963516c2ec4193703dad
@@ -158,16 +158,15 @@ stages:
       md5: cae3ac806d42fbc3fd5cf6fd1abb8d5a
       size: 401158
   tokenizer:
-    cmd: python -m nano_review.tokenization.bpe --train 
-      data/curated/train.parquet --validation data/curated/validation.parquet 
-      --output models/tokenizer.json --metrics reports/metrics/tokenizer.json 
-      --vocab-size 8000
+    cmd: python -m nano_review.tokenization.bpe --train data/gold/train.parquet 
+      --validation data/gold/validation.parquet --output models/tokenizer.json 
+      --metrics reports/metrics/tokenizer.json --vocab-size 8000
     deps:
-    - path: data/curated/train.parquet
+    - path: data/gold/train.parquet
       hash: md5
       md5: de6f177a019d0d3640803491421ed96b
       size: 9168996
-    - path: data/curated/validation.parquet
+    - path: data/gold/validation.parquet
       hash: md5
       md5: b91faa31a10db300400d8c65b4329863
       size: 1188736
@@ -177,8 +176,8 @@ stages:
       size: 11791
     - path: src/nano_review/tokenization/bpe.py
       hash: md5
-      md5: cafe3034075d739eb7f87eeeffd29c98
-      size: 6849
+      md5: 1af9fcb28e05ca8e31de5ae81885754a
+      size: 6843
     params:
       params.yaml:
         tokenizer.vocab_size: 8000
@@ -192,8 +191,8 @@ stages:
       md5: ee8d08dc15138eb3c20a3c9ea6caed69
       size: 647
   train:
-    cmd: python -m nano_review.training.train --train data/curated/train.parquet
-      --validation data/curated/validation.parquet --tokenizer 
+    cmd: python -m nano_review.training.train --train data/gold/train.parquet 
+      --validation data/gold/validation.parquet --tokenizer 
       models/tokenizer.json --checkpoint models/transformer.pt --metrics 
       reports/metrics/train.json --log reports/metrics/train_log.csv --figure 
       reports/figures/train_curve.png --samples 
@@ -203,11 +202,11 @@ stages:
       250 --eval-reviews 3000 --patience 8 --samples-per-rating 3 --seed 42 
       --conditioning true
     deps:
-    - path: data/curated/train.parquet
+    - path: data/gold/train.parquet
       hash: md5
       md5: de6f177a019d0d3640803491421ed96b
       size: 9168996
-    - path: data/curated/validation.parquet
+    - path: data/gold/validation.parquet
       hash: md5
       md5: b91faa31a10db300400d8c65b4329863
       size: 1188736
@@ -238,12 +237,12 @@ stages:
       isexec: true
     - path: src/nano_review/tokenization/bpe.py
       hash: md5
-      md5: cafe3034075d739eb7f87eeeffd29c98
-      size: 6849
+      md5: 1af9fcb28e05ca8e31de5ae81885754a
+      size: 6843
     - path: src/nano_review/training/train.py
       hash: md5
-      md5: e76891e9f51ff864a04d7877022674c2
-      size: 16427
+      md5: 3807b75482b30c0c1e630f66af338a37
+      size: 16421
     params:
       params.yaml:
         train:
@@ -287,18 +286,18 @@ stages:
   evaluate:
     cmd: python -m nano_review.evaluation.transformer_eval --checkpoint 
       models/transformer.pt --tokenizer models/tokenizer.json --judge 
-      models/judge.joblib --train data/curated/train.parquet --validation 
-      data/curated/validation.parquet --baseline reports/metrics/baseline.json 
+      models/judge.joblib --train data/gold/train.parquet --validation 
+      data/gold/validation.parquet --baseline reports/metrics/baseline.json 
       --train-metrics reports/metrics/train.json --metrics 
       reports/metrics/transformer_eval.json --samples 
       reports/samples/transformer_eval.jsonl --samples-per-rating 200 --stride 
       64 --seed 42
     deps:
-    - path: data/curated/train.parquet
+    - path: data/gold/train.parquet
       hash: md5
       md5: de6f177a019d0d3640803491421ed96b
       size: 9168996
-    - path: data/curated/validation.parquet
+    - path: data/gold/validation.parquet
       hash: md5
       md5: b91faa31a10db300400d8c65b4329863
       size: 1188736
@@ -324,28 +323,28 @@ stages:
       size: 361
     - path: src/nano_review/baseline/evaluate.py
       hash: md5
-      md5: ab7012ae758c874d1d5c513df03a0fc0
-      size: 10403
+      md5: 3da172f778c9d728d4fddb4688cd9d51
+      size: 10397
     - path: src/nano_review/baseline/judge.py
       hash: md5
-      md5: 14f1f61ad192b6021e78489d4455bf7a
-      size: 6966
+      md5: 7e18e59a94fca126e059114b5aed7f1b
+      size: 6960
     - path: src/nano_review/baseline/ngram.py
       hash: md5
       md5: cddc0c7a75494277352399d4865d52a2
       size: 11791
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 66b582e16b7a2d17bfd464bdd022f39b
-      size: 10165
+      md5: 82a75c915ac09e9691de78706adb645a
+      size: 10153
     - path: src/nano_review/evaluation/metrics.py
       hash: md5
       md5: bd92df8ff96a963516c2ec4193703dad
       size: 5640
     - path: src/nano_review/evaluation/transformer_eval.py
       hash: md5
-      md5: ad3e15e44ebe38bf18d821c5b214d9aa
-      size: 14017
+      md5: 0d49dff33a68a32aa57942672fcb10e5
+      size: 14011
     - path: src/nano_review/models/transformer.py
       hash: md5
       md5: a89a66243bbb9f9043619b767d16fb8d
@@ -357,12 +356,12 @@ stages:
       isexec: true
     - path: src/nano_review/tokenization/bpe.py
       hash: md5
-      md5: cafe3034075d739eb7f87eeeffd29c98
-      size: 6849
+      md5: 1af9fcb28e05ca8e31de5ae81885754a
+      size: 6843
     - path: src/nano_review/training/train.py
       hash: md5
-      md5: e76891e9f51ff864a04d7877022674c2
-      size: 16427
+      md5: 3807b75482b30c0c1e630f66af338a37
+      size: 16421
     params:
       params.yaml:
         evaluate:
@@ -381,12 +380,12 @@ stages:
   decoding:
     cmd: python -m nano_review.evaluation.decoding --checkpoint 
       models/transformer.pt --tokenizer models/tokenizer.json --judge 
-      models/judge.joblib --train data/curated/train.parquet --metrics 
+      models/judge.joblib --train data/gold/train.parquet --metrics 
       reports/metrics/decoding.json --samples reports/samples/decoding.jsonl 
       --temperatures 1.0 0.9 0.8 0.7 --top-ks 0 50 20 --samples-per-rating 200 
       --seed 42
     deps:
-    - path: data/curated/train.parquet
+    - path: data/gold/train.parquet
       hash: md5
       md5: de6f177a019d0d3640803491421ed96b
       size: 9168996
@@ -404,36 +403,36 @@ stages:
       size: 20980783
     - path: src/nano_review/baseline/evaluate.py
       hash: md5
-      md5: ab7012ae758c874d1d5c513df03a0fc0
-      size: 10403
+      md5: 3da172f778c9d728d4fddb4688cd9d51
+      size: 10397
     - path: src/nano_review/baseline/judge.py
       hash: md5
-      md5: 14f1f61ad192b6021e78489d4455bf7a
-      size: 6966
+      md5: 7e18e59a94fca126e059114b5aed7f1b
+      size: 6960
     - path: src/nano_review/baseline/ngram.py
       hash: md5
       md5: cddc0c7a75494277352399d4865d52a2
       size: 11791
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 66b582e16b7a2d17bfd464bdd022f39b
-      size: 10165
+      md5: 82a75c915ac09e9691de78706adb645a
+      size: 10153
     - path: src/nano_review/evaluation/decoding.py
       hash: md5
-      md5: 70ae1e13641f5036355f862fd9820157
-      size: 9742
+      md5: 74cff8bf3c6950fc75c01a4a20a2d427
+      size: 9739
     - path: src/nano_review/evaluation/error_analysis.py
       hash: md5
-      md5: f57fb73e9e29d0f8cad40d455fc7ba0f
-      size: 7656
+      md5: 6dedb24d7f90f6247d0fecb361a69571
+      size: 7653
     - path: src/nano_review/evaluation/metrics.py
       hash: md5
       md5: bd92df8ff96a963516c2ec4193703dad
       size: 5640
     - path: src/nano_review/evaluation/transformer_eval.py
       hash: md5
-      md5: ad3e15e44ebe38bf18d821c5b214d9aa
-      size: 14017
+      md5: 0d49dff33a68a32aa57942672fcb10e5
+      size: 14011
     - path: src/nano_review/inference/sampling.py
       hash: md5
       md5: e36073551bb2967207a19b490ed9467d
@@ -444,8 +443,8 @@ stages:
       size: 10690
     - path: src/nano_review/tokenization/bpe.py
       hash: md5
-      md5: cafe3034075d739eb7f87eeeffd29c98
-      size: 6849
+      md5: 1af9fcb28e05ca8e31de5ae81885754a
+      size: 6843
     params:
       params.yaml:
         decoding:
@@ -472,11 +471,11 @@ stages:
   inference_check:
     cmd: python -m nano_review.evaluation.inference_check --checkpoint 
       models/transformer.pt --tokenizer models/tokenizer.json --judge 
-      models/judge.joblib --train data/curated/train.parquet --metrics 
+      models/judge.joblib --train data/gold/train.parquet --metrics 
       reports/metrics/inference.json --samples reports/samples/inference.jsonl 
       --top-ks 0 50 --samples-per-rating 200 --seed 42
     deps:
-    - path: data/curated/train.parquet
+    - path: data/gold/train.parquet
       hash: md5
       md5: de6f177a019d0d3640803491421ed96b
       size: 9168996
@@ -494,40 +493,40 @@ stages:
       size: 20980783
     - path: src/nano_review/baseline/evaluate.py
       hash: md5
-      md5: ab7012ae758c874d1d5c513df03a0fc0
-      size: 10403
+      md5: 3da172f778c9d728d4fddb4688cd9d51
+      size: 10397
     - path: src/nano_review/baseline/judge.py
       hash: md5
-      md5: 14f1f61ad192b6021e78489d4455bf7a
-      size: 6966
+      md5: 7e18e59a94fca126e059114b5aed7f1b
+      size: 6960
     - path: src/nano_review/baseline/ngram.py
       hash: md5
       md5: cddc0c7a75494277352399d4865d52a2
       size: 11791
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 66b582e16b7a2d17bfd464bdd022f39b
-      size: 10165
+      md5: 82a75c915ac09e9691de78706adb645a
+      size: 10153
     - path: src/nano_review/evaluation/decoding.py
       hash: md5
-      md5: 70ae1e13641f5036355f862fd9820157
-      size: 9742
+      md5: 74cff8bf3c6950fc75c01a4a20a2d427
+      size: 9739
     - path: src/nano_review/evaluation/error_analysis.py
       hash: md5
-      md5: f57fb73e9e29d0f8cad40d455fc7ba0f
-      size: 7656
+      md5: 6dedb24d7f90f6247d0fecb361a69571
+      size: 7653
     - path: src/nano_review/evaluation/inference_check.py
       hash: md5
-      md5: d9123ff6e3c664795a3772a4d348aa15
-      size: 7120
+      md5: ca8150faabd3438647641e7e4a4c6d59
+      size: 7117
     - path: src/nano_review/evaluation/metrics.py
       hash: md5
       md5: bd92df8ff96a963516c2ec4193703dad
       size: 5640
     - path: src/nano_review/evaluation/transformer_eval.py
       hash: md5
-      md5: ad3e15e44ebe38bf18d821c5b214d9aa
-      size: 14017
+      md5: 0d49dff33a68a32aa57942672fcb10e5
+      size: 14011
     - path: src/nano_review/inference/generator.py
       hash: md5
       md5: 59534d0cc0df6ea1ba9ff903d45e6c16
@@ -542,8 +541,8 @@ stages:
       size: 10690
     - path: src/nano_review/tokenization/bpe.py
       hash: md5
-      md5: cafe3034075d739eb7f87eeeffd29c98
-      size: 6849
+      md5: 1af9fcb28e05ca8e31de5ae81885754a
+      size: 6843
     params:
       params.yaml:
         inference_check:
@@ -564,8 +563,8 @@ stages:
   final_eval:
     cmd: python -m nano_review.evaluation.final_eval --checkpoint 
       models/transformer.pt --tokenizer models/tokenizer.json --judge 
-      models/judge.joblib --train data/curated/train.parquet --validation 
-      data/curated/validation.parquet --test data/curated/test.parquet --raw 
+      models/judge.joblib --train data/gold/train.parquet --validation 
+      data/gold/validation.parquet --test data/gold/test.parquet --raw 
       data/raw/B2W-Reviews01.csv --baseline reports/metrics/baseline.json 
       --transformer-eval reports/metrics/transformer_eval.json --metrics 
       reports/metrics/final_eval.json --samples reports/samples/final_eval.jsonl
@@ -573,15 +572,15 @@ stages:
       3 --vocab-min-count 2 --samples-per-rating 200 --seed 2027 
       --control-per-rating 10 --control-seed 2028
     deps:
-    - path: data/curated/test.parquet
+    - path: data/gold/test.parquet
       hash: md5
       md5: b5a17c2dd23678c1c55a424e3408cac2
       size: 1180621
-    - path: data/curated/train.parquet
+    - path: data/gold/train.parquet
       hash: md5
       md5: de6f177a019d0d3640803491421ed96b
       size: 9168996
-    - path: data/curated/validation.parquet
+    - path: data/gold/validation.parquet
       hash: md5
       md5: b91faa31a10db300400d8c65b4329863
       size: 1188736
@@ -611,44 +610,44 @@ stages:
       size: 1609
     - path: src/nano_review/baseline/evaluate.py
       hash: md5
-      md5: ab7012ae758c874d1d5c513df03a0fc0
-      size: 10403
+      md5: 3da172f778c9d728d4fddb4688cd9d51
+      size: 10397
     - path: src/nano_review/baseline/judge.py
       hash: md5
-      md5: 14f1f61ad192b6021e78489d4455bf7a
-      size: 6966
+      md5: 7e18e59a94fca126e059114b5aed7f1b
+      size: 6960
     - path: src/nano_review/baseline/ngram.py
       hash: md5
       md5: cddc0c7a75494277352399d4865d52a2
       size: 11791
     - path: src/nano_review/data/clean.py
       hash: md5
-      md5: 66b582e16b7a2d17bfd464bdd022f39b
-      size: 10165
+      md5: 82a75c915ac09e9691de78706adb645a
+      size: 10153
     - path: src/nano_review/evaluation/decoding.py
       hash: md5
-      md5: 70ae1e13641f5036355f862fd9820157
-      size: 9742
+      md5: 74cff8bf3c6950fc75c01a4a20a2d427
+      size: 9739
     - path: src/nano_review/evaluation/error_analysis.py
       hash: md5
-      md5: f57fb73e9e29d0f8cad40d455fc7ba0f
-      size: 7656
+      md5: 6dedb24d7f90f6247d0fecb361a69571
+      size: 7653
     - path: src/nano_review/evaluation/final_eval.py
       hash: md5
-      md5: 5f76696d7f95dcb9384f51e0c1b6928a
-      size: 9421
+      md5: acd92378402f2b0ea67db5dc95697007
+      size: 9409
     - path: src/nano_review/evaluation/inference_check.py
       hash: md5
-      md5: d9123ff6e3c664795a3772a4d348aa15
-      size: 7120
+      md5: ca8150faabd3438647641e7e4a4c6d59
+      size: 7117
     - path: src/nano_review/evaluation/metrics.py
       hash: md5
       md5: bd92df8ff96a963516c2ec4193703dad
       size: 5640
     - path: src/nano_review/evaluation/transformer_eval.py
       hash: md5
-      md5: ad3e15e44ebe38bf18d821c5b214d9aa
-      size: 14017
+      md5: 0d49dff33a68a32aa57942672fcb10e5
+      size: 14011
     - path: src/nano_review/inference/generator.py
       hash: md5
       md5: 59534d0cc0df6ea1ba9ff903d45e6c16
@@ -663,8 +662,8 @@ stages:
       size: 10690
     - path: src/nano_review/tokenization/bpe.py
       hash: md5
-      md5: cafe3034075d739eb7f87eeeffd29c98
-      size: 6849
+      md5: 1af9fcb28e05ca8e31de5ae81885754a
+      size: 6843
     params:
       params.yaml:
         baseline.vocab_min_count: 2

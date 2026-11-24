@@ -1,4 +1,4 @@
-"""Split por produto: de ``data/processed`` para ``data/curated/{train,validation,test}.parquet``.
+"""Split por produto: de ``data/silver`` para ``data/gold/{train,validation,test}.parquet``.
 
 Por que por produto, e não por linha: resenhas do mesmo produto repetem nome, defeito e
 vocabulário. Se o mesmo produto estivesse no treino e no teste, o teste mediria memória do
@@ -9,8 +9,8 @@ produto, e não generalização.
 
 Uso (normalmente pelo ``dvc repro``, que lê os parâmetros de ``params.yaml``)::
 
-    python -m nano_review.data.split --input data/processed/reviews.parquet \\
-        --output-dir data/curated --metrics reports/metrics/split.json
+    python -m nano_review.data.split --input data/silver/reviews.parquet \\
+        --output-dir data/gold --metrics reports/metrics/split.json
 """
 
 from __future__ import annotations

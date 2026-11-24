@@ -166,7 +166,7 @@ def test_clean_reviews_applies_every_rule_and_counts_them() -> None:
         ]
     )
 
-    processed, removed = clean_reviews(raw, max_repeat=3)
+    cleaned, removed = clean_reviews(raw, max_repeat=3)
 
     assert removed == {
         "missing_text": 1,
@@ -175,12 +175,12 @@ def test_clean_reviews_applies_every_rule_and_counts_them() -> None:
         "conflicting_rating": 2,
         "duplicate_text": 1,
     }
-    assert processed["review_text"].tolist() == [
+    assert cleaned["review_text"].tolist() == [
         "Parabéns pela agilidade!",
         "Péssimo, não recomendo",
     ]
-    assert processed["product_id"].tolist() == ["p1", "p8"]
-    assert list(processed.columns) == [
+    assert cleaned["product_id"].tolist() == ["p1", "p8"]
+    assert list(cleaned.columns) == [
         "product_id",
         "site_category_lv1",
         "overall_rating",
@@ -189,5 +189,5 @@ def test_clean_reviews_applies_every_rule_and_counts_them() -> None:
 
 
 def test_clean_reviews_never_keeps_personal_columns() -> None:
-    processed, _ = clean_reviews(_reviews([("p1", 5, "ótimo")]), max_repeat=3)
-    assert not {"reviewer_id", "reviewer_gender", "review_title"} & set(processed.columns)
+    cleaned, _ = clean_reviews(_reviews([("p1", 5, "ótimo")]), max_repeat=3)
+    assert not {"reviewer_id", "reviewer_gender", "review_title"} & set(cleaned.columns)

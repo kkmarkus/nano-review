@@ -18,7 +18,7 @@ Uso (normalmente pelo ``dvc repro decoding``)::
 
     python -m nano_review.evaluation.decoding --checkpoint models/transformer.pt \\
         --tokenizer models/tokenizer.json --judge models/judge.joblib \\
-        --train data/curated/train.parquet --metrics reports/metrics/decoding.json \\
+        --train data/gold/train.parquet --metrics reports/metrics/decoding.json \\
         --samples reports/samples/decoding.jsonl --temperatures 1.0 0.8 --top-ks 0 50 \\
         --samples-per-rating 200 --seed 42
 """

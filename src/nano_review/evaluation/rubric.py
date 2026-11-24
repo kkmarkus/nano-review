@@ -18,7 +18,7 @@ Uso::
 
     python -m nano_review.evaluation.rubric batch --trigram reports/samples/baseline.jsonl \\
         --transformer reports/samples/transformer_eval.jsonl \\
-        --validation data/curated/validation.parquet --tokenizer models/tokenizer.json \\
+        --validation data/gold/validation.parquet --tokenizer models/tokenizer.json \\
         --block-size 128 --out-dir reports/rubric --per-rating 20 --seed 2026
     python -m nano_review.evaluation.rubric summarize --sheet reports/rubric/sheet_v1.csv \\
         --key reports/rubric/key_v1.csv --metrics reports/metrics/rubric.json

@@ -8,7 +8,7 @@ stages:
     cmd: >-
       python -m nano_review.data.clean
       --input data/raw/B2W-Reviews01.csv
-      --output data/processed/reviews.parquet
+      --output data/silver/reviews.parquet
       --metrics reports/metrics/cleaning.json
       --max-repeat ${clean.max_repeat}
     deps:
@@ -17,7 +17,7 @@ stages:
     params:
       - clean.max_repeat
     outs:
-      - data/processed/reviews.parquet
+      - data/silver/reviews.parquet
     metrics:
       # Pequeno e legível: vai para o Git, não para o cache do DVC.
       - reports/metrics/cleaning.json:
@@ -26,23 +26,23 @@ stages:
   split:
     cmd: >-
       python -m nano_review.data.split
-      --input data/processed/reviews.parquet
-      --output-dir data/curated
+      --input data/silver/reviews.parquet
+      --output-dir data/gold
       --metrics reports/metrics/split.json
       --validation-fraction ${split.validation_fraction}
       --test-fraction ${split.test_fraction}
       --seed ${split.seed}
     deps:
       - src/nano_review/data/split.py
-      - data/processed/reviews.parquet
+      - data/silver/reviews.parquet
     params:
       - split.validation_fraction
       - split.test_fraction
       - split.seed
     outs:
-      - data/curated/train.parquet
-      - data/curated/validation.parquet
-      - data/curated/test.parquet
+      - data/gold/train.parquet
+      - data/gold/validation.parquet
+      - data/gold/test.parquet
     metrics:
       - reports/metrics/split.json:
           cache: false
@@ -51,8 +51,8 @@ stages:
     # Só train e validation: o juiz nunca vê o teste, que é aberto uma vez só, na Etapa 4.
     cmd: >-
       python -m nano_review.baseline.judge
-      --train data/curated/train.parquet
-      --validation data/curated/validation.parquet
+      --train data/gold/train.parquet
+      --validation data/gold/validation.parquet
       --model models/judge.joblib
       --metrics reports/metrics/judge.json
       --ngram-max ${judge.ngram_max}
@@ -62,8 +62,8 @@ stages:
       - src/nano_review/baseline/judge.py
       # O juiz usa a chave de dedupe para reconhecer texto vazio.
       - src/nano_review/data/clean.py
-      - data/curated/train.parquet
-      - data/curated/validation.parquet
+      - data/gold/train.parquet
+      - data/gold/validation.parquet
     params:
       - judge.ngram_max
       - judge.min_df
@@ -77,8 +77,8 @@ stages:
   baseline:
     cmd: >-
       python -m nano_review.baseline.evaluate
-      --train data/curated/train.parquet
-      --validation data/curated/validation.parquet
+      --train data/gold/train.parquet
+      --validation data/gold/validation.parquet
       --judge models/judge.joblib
       --metrics reports/metrics/baseline.json
       --samples reports/samples/baseline.jsonl
@@ -95,8 +95,8 @@ stages:
       - src/nano_review/baseline/judge.py
       - src/nano_review/evaluation/metrics.py
       - src/nano_review/data/clean.py
-      - data/curated/train.parquet
-      - data/curated/validation.parquet
+      - data/gold/train.parquet
+      - data/gold/validation.parquet
       - models/judge.joblib
       # Só para a referência humana de cópia antes do dedupe; as linhas do teste são descartadas.
       - data/raw/B2W-Reviews01.csv
@@ -115,8 +115,8 @@ stages:
     # Treinado só no train; a validação entra apenas para medir o comportamento dele.
     cmd: >-
       python -m nano_review.tokenization.bpe
-      --train data/curated/train.parquet
-      --validation data/curated/validation.parquet
+      --train data/gold/train.parquet
+      --validation data/gold/validation.parquet
       --output models/tokenizer.json
       --metrics reports/metrics/tokenizer.json
       --vocab-size ${tokenizer.vocab_size}
@@ -124,8 +124,8 @@ stages:
       - src/nano_review/tokenization/bpe.py
       # Define os nomes dos tokens especiais (<bos>, <eos>, <unk>, <nota_k>).
       - src/nano_review/baseline/ngram.py
-      - data/curated/train.parquet
-      - data/curated/validation.parquet
+      - data/gold/train.parquet
+      - data/gold/validation.parquet
     params:
       - tokenizer.vocab_size
     outs:
@@ -137,8 +137,8 @@ stages:
   train:
     cmd: >-
       python -m nano_review.training.train
-      --train data/curated/train.parquet
-      --validation data/curated/validation.parquet
+      --train data/gold/train.parquet
+      --validation data/gold/validation.parquet
       --tokenizer models/tokenizer.json
       --checkpoint models/transformer.pt
       --metrics reports/metrics/train.json
@@ -170,8 +170,8 @@ stages:
       - src/nano_review/baseline/ngram.py
       - src/nano_review/reproducibility.py
       - models/tokenizer.json
-      - data/curated/train.parquet
-      - data/curated/validation.parquet
+      - data/gold/train.parquet
+      - data/gold/validation.parquet
     params:
       - train
     outs:
@@ -194,8 +194,8 @@ stages:
       --checkpoint models/transformer.pt
       --tokenizer models/tokenizer.json
       --judge models/judge.joblib
-      --train data/curated/train.parquet
-      --validation data/curated/validation.parquet
+      --train data/gold/train.parquet
+      --validation data/gold/validation.parquet
       --baseline reports/metrics/baseline.json
       --train-metrics reports/metrics/train.json
       --metrics reports/metrics/transformer_eval.json
@@ -216,8 +216,8 @@ stages:
       - models/transformer.pt
       - models/tokenizer.json
       - models/judge.joblib
-      - data/curated/train.parquet
-      - data/curated/validation.parquet
+      - data/gold/train.parquet
+      - data/gold/validation.parquet
       - reports/metrics/baseline.json
       # Só para achar o run do MLflow do treino e gravar a avaliação nele.
       - reports/metrics/train.json
@@ -239,7 +239,7 @@ stages:
       --checkpoint models/transformer.pt
       --tokenizer models/tokenizer.json
       --judge models/judge.joblib
-      --train data/curated/train.parquet
+      --train data/gold/train.parquet
       --metrics reports/metrics/decoding.json
       --samples reports/samples/decoding.jsonl
       ${decoding}
@@ -258,7 +258,7 @@ stages:
       - models/transformer.pt
       - models/tokenizer.json
       - models/judge.joblib
-      - data/curated/train.parquet
+      - data/gold/train.parquet
     params:
       - decoding
     outs:
@@ -276,7 +276,7 @@ stages:
       --checkpoint models/transformer.pt
       --tokenizer models/tokenizer.json
       --judge models/judge.joblib
-      --train data/curated/train.parquet
+      --train data/gold/train.parquet
       --metrics reports/metrics/inference.json
       --samples reports/samples/inference.jsonl
       ${inference_check}
@@ -297,7 +297,7 @@ stages:
       - models/transformer.pt
       - models/tokenizer.json
       - models/judge.joblib
-      - data/curated/train.parquet
+      - data/gold/train.parquet
     params:
       - inference_check
     outs:
@@ -308,7 +308,7 @@ stages:
           cache: false
 
   final_eval:
-    # Etapa 4.3: o ÚNICO estágio que lê data/curated/test.parquet. Rodou uma vez (20/11/2026,
+    # Etapa 4.3: o ÚNICO estágio que lê data/gold/test.parquet. Rodou uma vez (20/11/2026,
     # commit 0ea7148) e está congelado: `frozen: true` faz o `dvc repro` pular o estágio, mesmo se
     # uma dependência mudar (docs/final_test.md). O `dvc freeze` não reescreve estágios com
     # ${...}, por isso o campo foi escrito à mão. Antes de ler o teste, o estágio confere na
@@ -319,9 +319,9 @@ stages:
       --checkpoint models/transformer.pt
       --tokenizer models/tokenizer.json
       --judge models/judge.joblib
-      --train data/curated/train.parquet
-      --validation data/curated/validation.parquet
-      --test data/curated/test.parquet
+      --train data/gold/train.parquet
+      --validation data/gold/validation.parquet
+      --test data/gold/test.parquet
       --raw data/raw/B2W-Reviews01.csv
       --baseline reports/metrics/baseline.json
       --transformer-eval reports/metrics/transformer_eval.json
@@ -350,9 +350,9 @@ stages:
       - models/transformer.pt
       - models/tokenizer.json
       - models/judge.joblib
-      - data/curated/train.parquet
-      - data/curated/validation.parquet
-      - data/curated/test.parquet
+      - data/gold/train.parquet
+      - data/gold/validation.parquet
+      - data/gold/test.parquet
       - data/raw/B2W-Reviews01.csv
       - reports/metrics/baseline.json
       - reports/metrics/transformer_eval.json

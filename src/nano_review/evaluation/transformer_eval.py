@@ -12,7 +12,7 @@ Uso (normalmente pelo ``dvc repro``, que lê os parâmetros de ``params.yaml``):
 
     python -m nano_review.evaluation.transformer_eval --checkpoint models/transformer.pt \\
         --tokenizer models/tokenizer.json --judge models/judge.joblib \\
-        --train data/curated/train.parquet --validation data/curated/validation.parquet \\
+        --train data/gold/train.parquet --validation data/gold/validation.parquet \\
         --baseline reports/metrics/baseline.json --train-metrics reports/metrics/train.json \\
         --metrics reports/metrics/transformer_eval.json \\
         --samples reports/samples/transformer_eval.jsonl --samples-per-rating 200 --seed 42

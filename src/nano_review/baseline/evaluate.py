@@ -17,8 +17,8 @@ Passos:
 
 Uso (normalmente pelo ``dvc repro``, que lê os parâmetros de ``params.yaml``)::
 
-    python -m nano_review.baseline.evaluate --train data/curated/train.parquet \\
-        --validation data/curated/validation.parquet --judge models/judge.joblib \\
+    python -m nano_review.baseline.evaluate --train data/gold/train.parquet \\
+        --validation data/gold/validation.parquet --judge models/judge.joblib \\
         --metrics reports/metrics/baseline.json --samples reports/samples/baseline.jsonl \\
         --raw data/raw/B2W-Reviews01.csv --max-repeat 3 \\
         --vocab-min-count 2 --samples-per-rating 200 --max-tokens 100 --seed 42

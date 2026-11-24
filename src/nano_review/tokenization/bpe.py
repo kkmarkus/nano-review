@@ -5,8 +5,8 @@ entender o que ela faz. A biblioteca não traz vocabulário nem pesos prontos: t
 
 Uso (normalmente pelo ``dvc repro``, que lê os parâmetros de ``params.yaml``)::
 
-    python -m nano_review.tokenization.bpe --train data/curated/train.parquet \\
-        --validation data/curated/validation.parquet --output models/tokenizer.json \\
+    python -m nano_review.tokenization.bpe --train data/gold/train.parquet \\
+        --validation data/gold/validation.parquet --output models/tokenizer.json \\
         --metrics reports/metrics/tokenizer.json --vocab-size 4000
 """
 
