@@ -349,9 +349,9 @@ Fonte: [`rubric.json`](../reports/metrics/rubric.json).
 
 As 37 amostras ruins do Transformer foram classificadas uma a uma
 ([`docs/error_analysis.md`](error_analysis.md)). **Quase todo erro é de forma, e não de tom:**
-- 33 das 37 são deriva (o texto começa bem e se perde), salada (sem sentido desde o começo) ou mistura
-  de produtos;
-- só 3 erram o tom.
+- 33 das 37 são de forma: 13 de deriva (o texto começa bem e se perde), 12 de salada (sem sentido
+  desde o começo) e 8 de mistura (7 misturam produtos, e 1 se contradiz);
+- 3 erram o tom, e 1 entra em loop, repetindo a mesma palavra.
 
 As causas foram medidas, e não só descritas:
 
